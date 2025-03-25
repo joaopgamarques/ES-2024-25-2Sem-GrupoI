@@ -38,6 +38,7 @@ public class App {
             logger.info("First record: {}", propertyRecords.get(0));
         }
 
+        /*
         String mp1 = "MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)))";
         String mp2 = "MULTIPOLYGON(((4 4,9 4,9 9,4 9,4 4)))";
 
@@ -46,5 +47,11 @@ public class App {
         boolean disjoint  = GeometryUtils.areDisjoint(mp1, mp2);
 
         logger.info("mp1 & mp2 -> adjacent? {}, intersect? {}, disjoint? {}", adjacent, intersect, disjoint);
+         */
+
+        List<PropertyRecord> ownedProperties = PropertyUtils.findByOwner(propertyRecords, propertyRecords.get(0).getOwner());
+        ownedProperties.forEach(propertyRecord -> logger.info("Owned property: {}", propertyRecord));
+        logger.info("Total owned properties: {}", ownedProperties.size());
+
     }
 }

@@ -7,13 +7,22 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for {@link CSVFileReader} using the sample test-data.csv file.
+ * Unit tests for {@link CSVFileReader}, verifying correct parsing of a sample CSV
+ * and handling of non-existent files.
+ *
+ * <p>This test suite expects a small CSV file, {@code /test-data.csv}, placed in
+ * {@code src/test/resources} (or on the test classpath). The file should contain
+ * at least two valid rows of data that map to {@link PropertyRecord} fields.
+ *
+ * <p>Additionally, these tests confirm the behavior when attempting to read
+ * from an invalid or missing file, where an empty list is returned.
  */
 class CSVFileReaderTest {
 
     /**
-     * Tests that the CSVFileReader correctly parses two rows from test-data.csv,
-     * creating two PropertyRecord objects with the expected field values.
+     * Verifies parsing a valid CSV resource ({@code /test-data.csv}) containing
+     * exactly two rows. Checks each field in the resulting {@link PropertyRecord}
+     * objects against expected values.
      */
     @Test
     void testImportDataWithValidFile() {
@@ -26,7 +35,7 @@ class CSVFileReaderTest {
 
         // Check first record
         PropertyRecord first = records.get(0);
-        assertEquals(1, first.getObjectID(),       "objectID for first row");
+        assertEquals(1, first.getObjectID(), "objectID for first row");
         assertEquals(7343148L, first.getParcelID(), "parcelID for first row");
         assertEquals(2996240000000L, first.getParcelNumber(), "parcelNumber for first row");
         assertEquals(57.2469341921808, first.getShapeLength(), 1e-9, "shapeLength for first row");
@@ -38,7 +47,7 @@ class CSVFileReaderTest {
 
         // Check second record
         PropertyRecord second = records.get(1);
-        assertEquals(2, second.getObjectID(),       "objectID for second row");
+        assertEquals(2, second.getObjectID(), "objectID for second row");
         assertEquals(7344660L, second.getParcelID(), "parcelID for second row");
         assertEquals(2996220000000L, second.getParcelNumber(), "parcelNumber for second row");
         assertEquals(55.6380071234, second.getShapeLength(), 1e-9, "shapeLength for second row");
@@ -50,7 +59,9 @@ class CSVFileReaderTest {
     }
 
     /**
-     * Tests that the CSVFileReader returns an empty list (and prints a message) if the file does not exist.
+     * Verifies that reading a missing or invalid CSV resource path (e.g.,
+     * {@code /nonexistent.csv}) produces an empty list. Also checks that
+     * no exceptions are thrown, and the method logs a warning.
      */
     @Test
     void testImportDataWithMissingFile() {

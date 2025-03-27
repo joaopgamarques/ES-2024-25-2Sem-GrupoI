@@ -2,6 +2,8 @@ package iscteiul.ista;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -38,20 +40,17 @@ public class App {
             logger.info("First record: {}", propertyRecords.get(0));
         }
 
-        /*
-        String mp1 = "MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)))";
-        String mp2 = "MULTIPOLYGON(((4 4,9 4,9 9,4 9,4 4)))";
-
-        boolean adjacent  = GeometryUtils.areAdjacent(mp1, mp2);
-        boolean intersect = GeometryUtils.doIntersect(mp1, mp2);
-        boolean disjoint  = GeometryUtils.areDisjoint(mp1, mp2);
-
-        logger.info("mp1 & mp2 -> adjacent? {}, intersect? {}, disjoint? {}", adjacent, intersect, disjoint);
-         */
-
+        // Example usage of a method that filters properties by a given owner.
         List<PropertyRecord> ownedProperties = PropertyUtils.findByOwner(propertyRecords, propertyRecords.get(0).getOwner());
         ownedProperties.forEach(propertyRecord -> logger.info("Owned property: {}", propertyRecord));
         logger.info("Total owned properties: {}", ownedProperties.size());
+
+        try {
+            CSVFileWriter.exportData("exported-data.csv", ownedProperties);
+            logger.info("Successfully exported {} records to 'exported-data.csv'", ownedProperties.size());
+        } catch (IOException e) {
+            logger.error("Error while exporting data to CSV.", e);
+        }
 
     }
 }

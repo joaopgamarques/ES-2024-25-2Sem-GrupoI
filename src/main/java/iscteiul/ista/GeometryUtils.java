@@ -1,5 +1,6 @@
 package iscteiul.ista;
 
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.ParseException;
@@ -98,6 +99,17 @@ public class GeometryUtils {
         } catch (ParseException e) {
             logger.error("Error parsing WKT in areDisjoint: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+
+
+    public static Envelope getEnvelope(String wkt) {
+        try {
+            Geometry geometry = WKT_READER.read(wkt);
+            return geometry.getEnvelopeInternal(); // Retorna o envelope (bounding box)
+        } catch (ParseException e) {
+            return new Envelope(); // Retorna envelope vazio se falhar
         }
     }
 }

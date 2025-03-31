@@ -1,6 +1,7 @@
 package iscteiul.ista;
 
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Envelope;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -99,5 +100,25 @@ class GeometryUtilsTest {
         assertFalse(GeometryUtils.areAdjacent(invalidWKT, validWKT), "Invalid WKT => false adjacency.");
         assertFalse(GeometryUtils.doIntersect(validWKT, invalidWKT), "Invalid WKT => false intersection.");
         assertFalse(GeometryUtils.areDisjoint(invalidWKT, validWKT), "Invalid WKT => false disjoint.");
+    }
+
+    /**
+     * Tests the {@code getEnvelope} method to ensure it returns the correct bounding
+     * box for valid WKT and an empty envelope for invalid WKT.
+     */
+    @Test
+    void testGetEnvelope() {
+        // Valid WKT
+        String wkt = "MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)))";
+        Envelope envelope = GeometryUtils.getEnvelope(wkt);
+        assertNotNull(envelope, "Envelope should not be null for valid WKT.");
+        assertEquals(0.0, envelope.getMinX(), 1e-9, "Min X should be 0.0");
+        assertEquals(5.0, envelope.getMaxX(), 1e-9, "Max X should be 5.0");
+        assertEquals(0.0, envelope.getMinY(), 1e-9, "Min Y should be 0.0");
+        assertEquals(5.0, envelope.getMaxY(), 1e-9, "Max Y should be 5.0");
+
+        // Invalid WKT
+        Envelope invalidEnvelope = GeometryUtils.getEnvelope("INVALID_WKT");
+        assertTrue(invalidEnvelope.isNull(), "Envelope for invalid WKT should be empty.");
     }
 }

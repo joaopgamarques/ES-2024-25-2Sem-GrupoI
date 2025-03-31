@@ -36,7 +36,7 @@ public class GeometryUtils {
      * @param wktA the WKT representation of geometry A
      * @param wktB the WKT representation of geometry B
      * @return {@code true} if they share a boundary without overlapping interior points,
-     *         {@code false} otherwise (including if either WKT is null or invalid)
+     *         {@code false} otherwise (including if either WKT is null or invalid).
      */
     public static boolean areAdjacent(String wktA, String wktB) {
         if (wktA == null || wktB == null) {
@@ -62,7 +62,7 @@ public class GeometryUtils {
      *
      * @param wktA the WKT representation of geometry A
      * @param wktB the WKT representation of geometry B
-     * @return {@code true} if there's any intersection, {@code false} otherwise
+     * @return {@code true} if there's any intersection, {@code false} otherwise.
      */
     public static boolean doIntersect(String wktA, String wktB) {
         if (wktA == null || wktB == null) {
@@ -85,7 +85,7 @@ public class GeometryUtils {
      *
      * @param wktA the WKT representation of geometry A
      * @param wktB the WKT representation of geometry B
-     * @return {@code true} if they share no common points at all; {@code false} otherwise
+     * @return {@code true} if they share no common points at all; {@code false} otherwise.
      */
     public static boolean areDisjoint(String wktA, String wktB) {
         if (wktA == null || wktB == null) {
@@ -102,14 +102,24 @@ public class GeometryUtils {
         }
     }
 
-
-
+    /**
+     * Returns the bounding box (an {@link Envelope}) of the geometry represented by the given WKT string.
+     * <p>
+     * If parsing fails for any reason (including null or invalid WKT), an <em>empty</em> {@link Envelope}
+     * is returned, rather than throwing an exception. This bounding box can be used in spatial indexing
+     * to quickly query potential adjacencies or overlaps.
+     *
+     * @param wkt the WKT representation of the geometry
+     * @return the bounding box of the geometry as an {@link Envelope}, or an empty envelope if parsing fails.
+     */
     public static Envelope getEnvelope(String wkt) {
         try {
             Geometry geometry = WKT_READER.read(wkt);
-            return geometry.getEnvelopeInternal(); // Retorna o envelope (bounding box)
+            return geometry.getEnvelopeInternal();
         } catch (ParseException e) {
-            return new Envelope(); // Retorna envelope vazio se falhar
+            // For consistency with other methods, we could log this as well:
+            logger.warn("Failed to parse WKT in getEnvelope. Returning an empty Envelope. Reason: {}", e.getMessage());
+            return new Envelope();  // Returns an empty envelope if parsing fails
         }
     }
 }

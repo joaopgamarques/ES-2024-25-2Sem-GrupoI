@@ -54,12 +54,13 @@ public class App {
 //        }
 
         CSVFileReader csvFileReader = new CSVFileReader();
+        String chosenParish = "Arco da Calheta";
         List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.1.csv");
-        List<PropertyRecord> smallSubset = propertyRecords.stream().limit(6000).collect(Collectors.toList());
-
+        List<PropertyRecord> parishSubset = propertyRecords.stream()
+                .filter(pr -> chosenParish.equals(pr.getParish()))
+                .collect(Collectors.toList());
         PropertyGraph propertyGraph = new PropertyGraph();
-        propertyGraph.buildGraph(smallSubset);
-
+        propertyGraph.buildGraph(parishSubset);
         GraphVisualization.visualizeGraph(propertyGraph);
     }
 }

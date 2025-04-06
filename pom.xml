@@ -80,6 +80,26 @@
   </dependencies>
 
   <build>
+
+    <plugins>
+      <!-- JaCoCo plugin for code coverage -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.12</version>
+        <executions>
+          <execution>
+            <goals>
+              <!-- prepare-agent: injects the JaCoCo agent for coverage -->
+              <goal>prepare-agent</goal>
+              <!-- report: generates the coverage report after tests -->
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
@@ -121,22 +141,7 @@
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>3.6.1</version>
         </plugin>
-        <!-- JaCoCo plugin for code coverage -->
-        <plugin>
-          <groupId>org.jacoco</groupId>
-          <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.8.12</version>
-          <executions>
-            <execution>
-              <goals>
-                <!-- prepare-agent: injects the JaCoCo agent for coverage -->
-                <goal>prepare-agent</goal>
-                <!-- report: generates the coverage report after tests -->
-                <goal>report</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
+
       </plugins>
     </pluginManagement>
   </build>

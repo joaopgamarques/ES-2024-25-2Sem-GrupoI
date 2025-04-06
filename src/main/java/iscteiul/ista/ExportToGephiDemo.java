@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  *   <li>Attach additional attributes (e.g. owner, shapeArea) to each node,
  *       so they appear in Gephi's Data Laboratory.</li>
  *   <li>Use {@link FileSinkGEXF} to write "output.gexf".</li>
- *   <li>Open "output.gexf" in Gephi for advanced layout & analysis.</li>
+ *   <li>Open "output.gexf" in Gephi for advanced layout &amp; analysis.</li>
  * </ol>
  *
  * <p><strong>Dependencies:</strong>

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for {@link PropertyUtils}, verifying the functionality of filtering
@@ -266,5 +267,46 @@ public class PropertyUtilsTest {
 
         assertTrue(nullRecordTest.isEmpty(), "If the record is null, should return empty list.");
         assertTrue(nullListTest.isEmpty(),   "If the list is null, should return empty list.");
+    }
+
+    /**
+     * Tests that the {@code getDistinctParishes} method identifies unique parish names
+     * among {@code sampleRecords}, ignoring repeated or null values. Ensures
+     * "Arco da Calheta" and "Some Parish" appear in the returned set.
+     */
+    @Test
+    @Order(13)
+    void testGetDistinctParishes() {
+        Set<String> distinct = PropertyUtils.getDistinctParishes(sampleRecords);
+        // rec1 => "Arco da Calheta"
+        // rec2 => "Some Parish"
+        // rec3 => possibly "NA" => null?
+
+        assertTrue(distinct.contains("Arco da Calheta"),
+                "Should include 'Arco da Calheta' in the set.");
+        assertTrue(distinct.contains("Some Parish"),
+                "Should include 'Some Parish' in the set.");
+        // Additional checks as needed
+    }
+
+    /**
+     * Tests that the {@code getDistinctMunicipalities} method identifies unique municipality
+     * names among {@code sampleRecords}, ignoring repeated or null values. Ensures
+     * "Calheta" and "Funchal" appear in the returned set and that the total count is 2.
+     */
+    @Test
+    @Order(14)
+    void testGetDistinctMunicipalities() {
+        Set<String> distinct = PropertyUtils.getDistinctMunicipalities(sampleRecords);
+        // rec1 => "Calheta"
+        // rec2 => "Calheta"
+        // rec3 => "Funchal"
+
+        assertTrue(distinct.contains("Calheta"),
+                "Should include 'Calheta' from rec1 and rec2.");
+        assertTrue(distinct.contains("Funchal"),
+                "Should include 'Funchal' from rec3.");
+        assertEquals(2, distinct.size(),
+                "Expected exactly 2 unique municipality names.");
     }
 }

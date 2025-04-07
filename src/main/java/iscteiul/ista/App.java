@@ -34,6 +34,12 @@ public class App {
         List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.1.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
 
+        // 1a. Print distinct parishes and municipalities
+        Set<String> distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);
+        Set<String> distinctMunicipalities = PropertyUtils.getDistinctMunicipalities(propertyRecords);
+        logger.info("Distinct Parishes: {}", distinctParishes);
+        logger.info("Distinct Municipalities: {}", distinctMunicipalities);
+
         // 2. Filter to a chosen parish.
         String chosenParish = "Arco da Calheta";
         List<PropertyRecord> parishSubset = propertyRecords.stream()
@@ -43,6 +49,15 @@ public class App {
 
         // 3. Build the graph from the parish subset.
         Graph propertyGraph = new Graph(parishSubset);
+
+        // 3a. Print adjacency for each node in propertyGraph.
+        logger.info("Adjacency List for Each Node in the Subset:");
+        for (Graph.GraphNode node : propertyGraph.getAllNodes()) {
+            List<Integer> neighborIDs = node.getNeighbors().stream()
+                    .map(Graph.GraphNode::getObjectID)
+                    .collect(Collectors.toList());
+            logger.info("Node {} => Neighbors: {}", node.getObjectID(), neighborIDs);
+        }
 
         // 4. Pick a random PropertyRecord from the subset.
         if (parishSubset.isEmpty()) {
@@ -62,7 +77,7 @@ public class App {
         String wkt = randomProperty.getGeometry();
         if (wkt != null) {
             try {
-                Geometry geom = wktReader.read(wkt);
+                Geometry geom = wktReader.read(wkt );
                 Point centroid = geom.getCentroid();
                 double cx = centroid.getX();
                 double cy = centroid.getY();

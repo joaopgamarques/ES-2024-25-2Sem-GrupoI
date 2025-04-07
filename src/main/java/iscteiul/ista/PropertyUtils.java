@@ -1,7 +1,6 @@
 package iscteiul.ista;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -110,6 +109,40 @@ public final class PropertyUtils {
             }
         }
         return result;
+    }
+
+    /**
+     * Returns a set of distinct parish names among the given PropertyRecord list.
+     * Null parish fields are excluded.
+     *
+     * @param records the list of PropertyRecord objects
+     * @return a Set of unique parish strings, or an empty set if records is null or no parishes
+     */
+    public static Set<String> getDistinctParishes(List<PropertyRecord> records) {
+        if (records == null) {
+            return Collections.emptySet();
+        }
+        return records.stream()
+                .map(PropertyRecord::getParish)
+                .filter(Objects::nonNull)  // skip null
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Returns a set of distinct municipality names among the given PropertyRecord list.
+     * Null municipality fields are excluded.
+     *
+     * @param records the list of PropertyRecord objects
+     * @return a Set of unique municipality strings, or an empty set if records is null or no municipalities
+     */
+    public static Set<String> getDistinctMunicipalities(List<PropertyRecord> records) {
+        if (records == null) {
+            return Collections.emptySet();
+        }
+        return records.stream()
+                .map(PropertyRecord::getMunicipality)
+                .filter(Objects::nonNull)  // skip null
+                .collect(Collectors.toSet());
     }
 
     // You can add more utility methods here (e.g., merging contiguous properties,

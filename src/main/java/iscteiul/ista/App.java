@@ -1,5 +1,6 @@
 package iscteiul.ista;
 
+import org.jgrapht.graph.DefaultEdge;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.io.ParseException;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -41,21 +43,25 @@ public class App {
         logger.info("Distinct Municipalities: {}", distinctMunicipalities);
 
         // 2. Filter to a chosen parish.
-        String chosenParish = "Arco da Calheta";
+        String chosenParish = "Canhas";
+
+        //podemos apagar-----
         List<PropertyRecord> parishSubset = propertyRecords.stream()
                 .filter(pr -> chosenParish.equals(pr.getParish()))
                 .collect(Collectors.toList());
         logger.info("Records in parish '{}': {}", chosenParish, parishSubset.size());
+        //podemos apagar-----
 
-        // 2.1. teste dos novos métodos: filtrar + média
-        List<PropertyRecord> propriedadesNaFreguesia = PropertyUtils.findByParish(propertyRecords, chosenParish);
-        double mediaArea = PropertyUtils.calculateAverageArea(propriedadesNaFreguesia);
-        logger.info("[NEW] Records in parish '{}': {}", chosenParish, propriedadesNaFreguesia.size());
-        logger.info("[NEW] Área média (sem agrupar) para a freguesia '{}': {}", chosenParish, mediaArea);
 
+        // 2a. Calculation of the average area of the properties by parish
+        List<PropertyRecord> parishProperties = PropertyUtils.findByParish(propertyRecords, chosenParish);
+        double mediaArea = PropertyUtils.calculateAverageArea(parishProperties);
+        logger.info("[NEW] Records in parish '{}': {}", chosenParish, parishProperties.size());
+        logger.info("[NEW] Average area (without group) by parish'{}': {}", chosenParish, mediaArea);
 
         // 3. Build the graph from the parish subset.
         Graph propertyGraph = new Graph(parishSubset);
+
 
         // 3a. Print adjacency for each node in propertyGraph.
         logger.info("Adjacency List for Each Node in the Subset:");
@@ -136,6 +142,15 @@ public class App {
 
         // 10. Build the graph (uses STRtree + adjacency checks under the hood).
         propertyGraphJgt.buildGraph(parishSubset);
+
+        //10a. Calculation of the average area of the properties grouped by owner
+        org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = propertyGraphJgt.getGraph();
+        double av = PropertyUtils.calculateAverageGroupedArea(parishSubset, graph);
+        System.out.println("[NEW] Average area of properties by parish (grouped by owner) " + av);
+        if(mediaArea !=av)
+            System.out.println("[NEW] The averages are not the same:" + mediaArea+" " +av);
+
+
 
         // 11. Use GraphVisualization to display the result in a GraphStream window.
         //     (this will appear in a small pop-up window with auto-layout)

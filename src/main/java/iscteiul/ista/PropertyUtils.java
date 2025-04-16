@@ -2,6 +2,7 @@ package iscteiul.ista;
 
 import org.jgrapht.alg.connectivity.ConnectivityInspector;
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -151,6 +152,13 @@ public final class PropertyUtils {
     // You can add more utility methods here (e.g., merging contiguous properties,
     // generating swap suggestions, etc.) as needed.
 
+    /**
+     * Filters a list of {@link PropertyRecord} objects by the specified parish name.
+     *
+     * @param records the list of all {@link PropertyRecord} objects
+     * @param parish the parish name to filter by; case-sensitive
+     * @return a new list of {@link PropertyRecord} objects in the specified parish
+     */
     public static List<PropertyRecord> findByParish(List<PropertyRecord> records, String parish) {
         if (records == null || parish == null) {
             return new ArrayList<>();
@@ -161,15 +169,80 @@ public final class PropertyUtils {
     }
 
 
-    public static double calculateAverageArea(List<PropertyRecord> propertys) {
-        if (propertys == null || propertys.isEmpty()) return 0.0;
+    /**
+     * Calculates the average area of the given list of {@link PropertyRecord} objects.
+     *
+     * @param properties the list of {@link PropertyRecord} objects
+     * @return the average area, or 0.0 if the list is null or empty
+     */
+    public static double calculateAverageArea(List<PropertyRecord> properties) {
+        if (properties == null || properties.isEmpty()) return 0.0;
 
-        double soma = propertys.stream()
+        double soma = properties.stream()
                 .mapToDouble(PropertyRecord::getShapeArea)
                 .sum();
 
-        return soma / propertys.size();
+        return soma / properties.size();
     }
 
+    /**
+     * Groups a list of {@link PropertyRecord} objects by their owner ID.
+     *
+     * @param properties the list of {@link PropertyRecord} objects
+     * @return a map where the key is the owner ID and the value is a list of properties owned by that owner
+     */
+    public static Map<Integer, List<PropertyRecord>> groupPropertiesByOwner(List<PropertyRecord> properties) {
+        if (properties == null) return new HashMap<>();
 
+        return properties.stream()
+                .collect(Collectors.groupingBy(PropertyRecord::getOwner));
+    }
+
+    /**
+     * Calculates the average area of connected property groups for each owner.
+     *
+     * <p>For each owner, builds a subgraph of their properties, identifies connected groups,
+     * and computes the total area for each group. Returns the average of these group areas.
+     *
+     * @param records the list of {@link PropertyRecord} objects
+     * @param fullGraph the full graph of properties and their connections
+     * @return the average area of connected property groups, or 0.0 if no groups are found
+     */
+    public static double calculateAverageGroupedArea(List<PropertyRecord> records, org.jgrapht.Graph<PropertyRecord, DefaultEdge> fullGraph) {
+        Map<Integer, List<PropertyRecord>> ownerGroups = groupPropertiesByOwner(records);
+        List<Double> allGroupedAreas = new ArrayList<>();
+
+        for (Map.Entry<Integer, List<PropertyRecord>> entry : ownerGroups.entrySet()) {
+            List<PropertyRecord> ownerProperties = entry.getValue();
+
+            // Subgrafo só com propriedades deste dono
+            org.jgrapht.Graph<PropertyRecord, DefaultEdge> subgraph = new SimpleGraph<>(DefaultEdge.class);
+            for (PropertyRecord p : ownerProperties) {
+                subgraph.addVertex(p);
+            }
+
+            for (PropertyRecord p1 : ownerProperties) {
+                for (PropertyRecord p2 : ownerProperties) {
+                    if (!p1.equals(p2) && fullGraph.containsEdge(p1, p2)) {
+                        subgraph.addEdge(p1, p2);
+                    }
+                }
+            }
+
+            ConnectivityInspector<PropertyRecord, DefaultEdge> inspector = new ConnectivityInspector<>(subgraph);
+            List<Set<PropertyRecord>> connectedSets = inspector.connectedSets();
+
+            for (Set<PropertyRecord> group : connectedSets) {
+                double totalArea = group.stream()
+                        .mapToDouble(PropertyRecord::getShapeArea)
+                        .sum();
+                allGroupedAreas.add(totalArea);
+            }
+        }
+
+        return allGroupedAreas.stream()
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
+    }
 }

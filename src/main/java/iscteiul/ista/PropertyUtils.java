@@ -209,6 +209,9 @@ public final class PropertyUtils {
      * @return the average area of connected property groups, or 0.0 if no groups are found
      */
     public static double calculateAverageGroupedArea(List<PropertyRecord> records, org.jgrapht.Graph<PropertyRecord, DefaultEdge> fullGraph) {
+        if (fullGraph == null) {
+            return 0.0;
+        }
         Map<Integer, List<PropertyRecord>> ownerGroups = groupPropertiesByOwner(records);
         List<Double> allGroupedAreas = new ArrayList<>();
 

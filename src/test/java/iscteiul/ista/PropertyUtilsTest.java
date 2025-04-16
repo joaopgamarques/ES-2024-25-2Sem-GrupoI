@@ -1,10 +1,13 @@
 package iscteiul.ista;
 
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -309,4 +312,89 @@ public class PropertyUtilsTest {
         assertEquals(2, distinct.size(),
                 "Expected exactly 2 unique municipality names.");
     }
+
+    // TESTS for findByOwner() - CC = 1
+
+    @Test
+    @Order(15)
+    void testFindByOwner() {
+        List<PropertyRecord> found = PropertyUtils.findByOwner(sampleRecords, 93);
+        assertEquals(2, found.size(), "Error: Expected 2 properties for owner 93.");
+    }
+
+    // TESTS for calculateAverageArea() - CC = 2
+
+    @Test
+    @Order(16)
+    void testCalculateAverageArea1() {
+        double average = PropertyUtils.calculateAverageArea(sampleRecords);
+        assertEquals(367.35, average, 0.01, "Error: Expected average area to be 100.0.");
+    }
+
+    @Test
+    @Order(17)
+    void testCalculateAverageArea2() {
+        double average = PropertyUtils.calculateAverageArea(null);
+        assertEquals(0.0, average, "Error: Expected average area to be 0.0 for null input.");
+    }
+    // TESTS for groupPropertiesByOwner() - CC = 1
+
+    @Test
+    @Order(18)
+    void testGroupPropertiesByOwner() {
+        Map<Integer, List<PropertyRecord>> grouped = PropertyUtils.groupPropertiesByOwner(sampleRecords);
+        assertEquals(2, grouped.size(), "Error: Expected 2 owners in the grouped map.");
+    }
+
+    // ------------------------------------------------------------------------
+    // TESTS for calculateAverageGroupedArea() - CC = 3
+    // ------------------------------------------------------------------------
+
+    @Test
+    @Order(19)
+    void testCalculateAverageGroupedArea1() {
+        double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, null);
+        assertEquals(0.0, average, "Error: Expected average grouped area to be 0.0 for null graph.");
+    }
+
+    @Test
+    @Order(20)
+    void testCalculateAverageGroupedArea2() {
+            // Criação de um grafo com componentes conectados
+            org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+            graph.addVertex(rec1);
+            graph.addVertex(rec2);
+            graph.addVertex(rec3);
+
+            // Conectar rec1 e rec2 (componente conectado)
+            graph.addEdge(rec1, rec2);
+
+            // Calcular a média das áreas dos grupos conectados
+            double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
+
+            // rec1 + rec2 formam um grupo conectado (área total = 202,0598 + 300.0)
+            // rec3 é um grupo isolado (área total = 600)
+            // Média = (502,0598 + 600) / 2 = 551,0299
+            assertEquals(551.0299, average, 0.01, "Erro: A média dos grupos conectados está incorreta.");
+        }
+
+    @Test
+    @Order(21)
+    void testCalculateAverageGroupedArea3() {
+            // Criação de um grafo sem componentes conectados
+            org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+            graph.addVertex(rec1);
+            graph.addVertex(rec2);
+            graph.addVertex(rec3);
+
+            // Nenhuma conexão entre os vértices
+
+            // Calcular a média das áreas dos grupos conectados
+            double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
+            double roundedAverage = Math.round(average * 100.0) / 100.0;
+            // Cada propriedade é um grupo isolado
+            assertEquals(367.35, roundedAverage, 0.01, "Erro: A média dos grupos desconectados está incorreta.");
+        }
+
+
 }

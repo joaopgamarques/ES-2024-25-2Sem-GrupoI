@@ -1,5 +1,8 @@
 package iscteiul.ista;
 
+import org.jgrapht.alg.connectivity.ConnectivityInspector;
+import org.jgrapht.graph.DefaultEdge;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -147,4 +150,26 @@ public final class PropertyUtils {
 
     // You can add more utility methods here (e.g., merging contiguous properties,
     // generating swap suggestions, etc.) as needed.
+
+    public static List<PropertyRecord> findByParish(List<PropertyRecord> records, String parish) {
+        if (records == null || parish == null) {
+            return new ArrayList<>();
+        }
+        return records.stream()
+                .filter(r -> parish.equals(r.getParish()))
+                .collect(Collectors.toList());
+    }
+
+
+    public static double calculateAverageArea(List<PropertyRecord> propertys) {
+        if (propertys == null || propertys.isEmpty()) return 0.0;
+
+        double soma = propertys.stream()
+                .mapToDouble(PropertyRecord::getShapeArea)
+                .sum();
+
+        return soma / propertys.size();
+    }
+
+
 }

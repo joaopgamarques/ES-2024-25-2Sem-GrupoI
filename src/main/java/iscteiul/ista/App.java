@@ -47,6 +47,13 @@ public class App {
                 .collect(Collectors.toList());
         logger.info("Records in parish '{}': {}", chosenParish, parishSubset.size());
 
+        // 2.1. teste dos novos métodos: filtrar + média
+        List<PropertyRecord> propriedadesNaFreguesia = PropertyUtils.findByParish(propertyRecords, chosenParish);
+        double mediaArea = PropertyUtils.calculateAverageArea(propriedadesNaFreguesia);
+        logger.info("[NEW] Records in parish '{}': {}", chosenParish, propriedadesNaFreguesia.size());
+        logger.info("[NEW] Área média (sem agrupar) para a freguesia '{}': {}", chosenParish, mediaArea);
+
+
         // 3. Build the graph from the parish subset.
         Graph propertyGraph = new Graph(parishSubset);
 

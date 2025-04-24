@@ -168,7 +168,6 @@ public final class PropertyUtils {
                 .collect(Collectors.toList());
     }
 
-
     /**
      * Calculates the average area of the given list of {@link PropertyRecord} objects.
      *
@@ -178,11 +177,11 @@ public final class PropertyUtils {
     public static double calculateAverageArea(List<PropertyRecord> properties) {
         if (properties == null || properties.isEmpty()) return 0.0;
 
-        double soma = properties.stream()
+        double totalArea = properties.stream()
                 .mapToDouble(PropertyRecord::getShapeArea)
                 .sum();
 
-        return soma / properties.size();
+        return totalArea / properties.size();
     }
 
     /**
@@ -209,40 +208,55 @@ public final class PropertyUtils {
      * @return the average area of connected property groups, or 0.0 if no groups are found
      */
     public static double calculateAverageGroupedArea(List<PropertyRecord> records, org.jgrapht.Graph<PropertyRecord, DefaultEdge> fullGraph) {
+        // If the full graph is null, we cannot proceed.
         if (fullGraph == null) {
             return 0.0;
         }
+
+        // 1) Group properties by owner.
         Map<Integer, List<PropertyRecord>> ownerGroups = groupPropertiesByOwner(records);
+
+        // We'll store the total area of each connected component (for all owners) in this list.
         List<Double> allGroupedAreas = new ArrayList<>();
 
+        // 2) For each owner, create a subgraph using only that owner's properties.
         for (Map.Entry<Integer, List<PropertyRecord>> entry : ownerGroups.entrySet()) {
             List<PropertyRecord> ownerProperties = entry.getValue();
 
-            // Subgrafo só com propriedades deste dono
+            // Create a new empty subgraph for this owner's properties.
             org.jgrapht.Graph<PropertyRecord, DefaultEdge> subgraph = new SimpleGraph<>(DefaultEdge.class);
+
+            // Add each property as a vertex.
             for (PropertyRecord p : ownerProperties) {
                 subgraph.addVertex(p);
             }
 
+            // Check which pairs of these properties are connected in the full graph,
+            // and add the corresponding edges to the subgraph.
             for (PropertyRecord p1 : ownerProperties) {
                 for (PropertyRecord p2 : ownerProperties) {
                     if (!p1.equals(p2) && fullGraph.containsEdge(p1, p2)) {
+                        // Add an undirected edge (DefaultEdge) to the subgraph.
                         subgraph.addEdge(p1, p2);
                     }
                 }
             }
 
+            // 3) Use JGraphT's ConnectivityInspector to find connected sets (components).
             ConnectivityInspector<PropertyRecord, DefaultEdge> inspector = new ConnectivityInspector<>(subgraph);
             List<Set<PropertyRecord>> connectedSets = inspector.connectedSets();
 
+            // 4) For each connected component, sum the shape areas of the properties in that component.
             for (Set<PropertyRecord> group : connectedSets) {
                 double totalArea = group.stream()
                         .mapToDouble(PropertyRecord::getShapeArea)
                         .sum();
+                // Store this group's total area in a list so we can average them later.
                 allGroupedAreas.add(totalArea);
             }
         }
 
+        // 5) Compute the average of all connected-group area sums, or 0.0 if the list is empty.
         return allGroupedAreas.stream()
                 .mapToDouble(Double::doubleValue)
                 .average()

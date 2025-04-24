@@ -313,88 +313,120 @@ public class PropertyUtilsTest {
                 "Expected exactly 2 unique municipality names.");
     }
 
-    // TESTS for findByOwner() - CC = 1
+    // ------------------------------------------------------------------------
+    // Additional tests for findByOwner(), average area, grouping, etc.
+    // ------------------------------------------------------------------------
 
+    /**
+     * Another test for {@link PropertyUtils#findByOwner(List, int)} verifying
+     * we get 2 properties for owner=93.
+     */
     @Test
     @Order(15)
-    void testFindByOwner() {
-        List<PropertyRecord> found = PropertyUtils.findByOwner(sampleRecords, 93);
-        assertEquals(2, found.size(), "Error: Expected 2 properties for owner 93.");
+    void testFindByOwner_sameOwnerAsRec3() {
+        // This test is placed here for clarity, but references rec3's distinct owner 999 above.
+        // The logic is: rec3 alone has owner=999, so we expect exactly 1 result.
+        List<PropertyRecord> found = PropertyUtils.findByOwner(sampleRecords, 999);
+        assertEquals(1, found.size(), "We expect exactly 1 property (rec3) for owner=999.");
+        assertTrue(found.contains(rec3), "The found list should include rec3 only.");
     }
 
-    // TESTS for calculateAverageArea() - CC = 2
+    // TESTS for calculateAverageArea() -
+    // (We'll do 2 tests: one with a valid list, one with null input.)
 
     @Test
     @Order(16)
-    void testCalculateAverageArea1() {
+    void testCalculateAverageArea_valid() {
         double average = PropertyUtils.calculateAverageArea(sampleRecords);
-        assertEquals(367.35, average, 0.01, "Error: Expected average area to be 100.0.");
+        // rec1.area=202.0598, rec2.area=300.0, rec3.area=600.0
+        // sum=1102.0598, #=3 => average=1102.0598/3=367.353266...
+        // We'll allow a small delta in the assert
+        assertEquals(367.35, average, 0.01,
+                "Error: Expected average area ~367.35 for the sampleRecords.");
     }
 
     @Test
     @Order(17)
-    void testCalculateAverageArea2() {
+    void testCalculateAverageArea_nullInput() {
         double average = PropertyUtils.calculateAverageArea(null);
-        assertEquals(0.0, average, "Error: Expected average area to be 0.0 for null input.");
+        assertEquals(0.0, average,
+                "Expected average area to be 0.0 for null input.");
     }
-    // TESTS for groupPropertiesByOwner() - CC = 1
 
+    // TESTS for groupPropertiesByOwner()
     @Test
     @Order(18)
     void testGroupPropertiesByOwner() {
         Map<Integer, List<PropertyRecord>> grouped = PropertyUtils.groupPropertiesByOwner(sampleRecords);
-        assertEquals(2, grouped.size(), "Error: Expected 2 owners in the grouped map.");
+        // We expect 2 owners total: 93 (rec1 & rec2), 999 (rec3).
+        assertEquals(2, grouped.size(),
+                "Error: Expected 2 owners in the grouped map.");
+
+        // Check that owner=93 has 2, owner=999 has 1
+        assertTrue(grouped.containsKey(93), "Should have a key for owner=93.");
+        assertTrue(grouped.containsKey(999), "Should have a key for owner=999.");
+        assertEquals(2, grouped.get(93).size(),
+                "Owner=93 should have 2 properties (rec1, rec2).");
+        assertEquals(1, grouped.get(999).size(),
+                "Owner=999 should have 1 property (rec3).");
     }
 
     // ------------------------------------------------------------------------
-    // TESTS for calculateAverageGroupedArea() - CC = 3
+    // TESTS for calculateAverageGroupedArea()
     // ------------------------------------------------------------------------
 
     @Test
     @Order(19)
-    void testCalculateAverageGroupedArea1() {
+    void testCalculateAverageGroupedArea_nullGraph() {
         double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, null);
-        assertEquals(0.0, average, "Error: Expected average grouped area to be 0.0 for null graph.");
+        assertEquals(0.0, average,
+                "Error: Expected average grouped area to be 0.0 for null graph.");
     }
 
     @Test
     @Order(20)
-    void testCalculateAverageGroupedArea2() {
-            // Criação de um grafo com componentes conectados
-            org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
-            graph.addVertex(rec1);
-            graph.addVertex(rec2);
-            graph.addVertex(rec3);
+    void testCalculateAverageGroupedArea_connected() {
+        // Create a graph in which rec1 and rec2 are connected, rec3 is isolated
+        org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+        graph.addVertex(rec1);
+        graph.addVertex(rec2);
+        graph.addVertex(rec3);
 
-            // Conectar rec1 e rec2 (componente conectado)
-            graph.addEdge(rec1, rec2);
+        // Connect rec1 and rec2 (forming one connected component)
+        graph.addEdge(rec1, rec2);
 
-            // Calcular a média das áreas dos grupos conectados
-            double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
+        // Calculate the average area of the connected groups
+        double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
 
-            // rec1 + rec2 formam um grupo conectado (área total = 202,0598 + 300.0)
-            // rec3 é um grupo isolado (área total = 600)
-            // Média = (502,0598 + 600) / 2 = 551,0299
-            assertEquals(551.0299, average, 0.01, "Erro: A média dos grupos conectados está incorreta.");
-        }
+        // rec1 + rec2 => total area = 202.0598 + 300 = 502.0598 (one connected component)
+        // rec3 => total area = 600.0 (another connected component)
+        // We have 2 connected components => average = (502.0598 + 600) / 2 = 551.0299
+        assertEquals(551.0299, average, 0.01,
+                "Error: The average of the connected groups is incorrect.");
+    }
 
     @Test
     @Order(21)
-    void testCalculateAverageGroupedArea3() {
-            // Criação de um grafo sem componentes conectados
-            org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
-            graph.addVertex(rec1);
-            graph.addVertex(rec2);
-            graph.addVertex(rec3);
+    void testCalculateAverageGroupedArea_disconnected() {
+        // Create a graph with NO edges: all properties are isolated
+        org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+        graph.addVertex(rec1);
+        graph.addVertex(rec2);
+        graph.addVertex(rec3);
 
-            // Nenhuma conexão entre os vértices
+        // Each property is its own connected component
+        double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
 
-            // Calcular a média das áreas dos grupos conectados
-            double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
-            double roundedAverage = Math.round(average * 100.0) / 100.0;
-            // Cada propriedade é um grupo isolado
-            assertEquals(367.35, roundedAverage, 0.01, "Erro: A média dos grupos desconectados está incorreta.");
-        }
+        // rec1 => area=202.0598
+        // rec2 => area=300
+        // rec3 => area=600
+        // sum of group areas = 202.0598 + 300 + 600 = 1102.0598
+        // # of groups = 3, so average ~ 367.353266...
+        // We'll compare to 367.35 with a small tolerance
+        double roundedAverage = Math.round(average * 100.0) / 100.0;
 
+        assertEquals(367.35, roundedAverage, 0.01,
+                "Error: The average area of disconnected groups is incorrect.");
+    }
 
 }

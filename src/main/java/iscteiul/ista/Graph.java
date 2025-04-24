@@ -32,6 +32,13 @@ public class Graph {
         // For the adjacency list, we store the neighboring nodes.
         private final List<GraphNode> neighbors = new ArrayList<>();
 
+        /**
+         * Constructs a {@link GraphNode} based on the data from the given {@link PropertyRecord}.
+         * <p>
+         * This includes attempting to parse the WKT geometry to compute a centroid (if valid).
+         *
+         * @param record the source property record used to populate this node's attributes
+         */
         public GraphNode(PropertyRecord record) {
             this.objectID = record.getObjectID();
             this.parcelID = record.getParcelID();
@@ -62,50 +69,119 @@ public class Graph {
             this.centroidY = tmpY;
         }
 
+        /**
+         * Returns the unique ID (objectID) for this property node.
+         *
+         * @return the object's unique integer ID
+         */
         public int getObjectID() {
             return objectID;
         }
 
+        /**
+         * Returns the parcel ID of this property.
+         *
+         * @return the parcel ID as a long
+         */
         public long getParcelID() {
             return parcelID;
         }
 
+        /**
+         * Returns the length of this property's shape.
+         *
+         * @return the shape length in the same units as stored
+         */
         public double getShapeLength() {
             return shapeLength;
         }
 
+        /**
+         * Returns the area of this property.
+         *
+         * @return the shape area in square units
+         */
         public double getShapeArea() {
             return shapeArea;
         }
 
+        /**
+         * Returns the owner's integer ID for this property.
+         *
+         * @return the owner's ID
+         */
         public int getOwner() {
             return owner;
         }
 
+        /**
+         * Returns the name of the parish where the property is located,
+         * or {@code null} if not applicable.
+         *
+         * @return the parish name, or {@code null}
+         */
         public String getParish() {
             return parish;
         }
 
+        /**
+         * Returns the name of the municipality where the property is located,
+         * or {@code null} if not applicable.
+         *
+         * @return the municipality name, or {@code null}
+         */
         public String getMunicipality() {
             return municipality;
         }
 
+        /**
+         * Returns the name of the island where the property is located,
+         * or {@code null} if not applicable.
+         *
+         * @return the island name, or {@code null}
+         */
         public String getIsland() {
             return island;
         }
 
+        /**
+         * Returns the raw WKT geometry string representing this property's boundaries,
+         * or {@code null} if not provided.
+         *
+         * @return the property's WKT geometry, or {@code null}
+         */
         public String getGeometry() {
             return geometry;
         }
 
+        /**
+         * Returns the x-coordinate of this property's centroid
+         * (computed from the geometry), or {@code NaN} if invalid.
+         *
+         * @return the x-coordinate of the centroid
+         */
         public double getCentroidX() {
             return centroidX;
         }
 
+        /**
+         * Returns the y-coordinate of this property's centroid
+         * (computed from the geometry), or {@code NaN} if invalid.
+         *
+         * @return the y-coordinate of the centroid
+         */
         public double getCentroidY() {
             return centroidY;
         }
 
+        /**
+         * Returns the list of adjacent (neighbor) nodes for this property node.
+         * <p>
+         * In an undirected property graph, these neighbors represent properties
+         * that are spatially adjacent (touching boundaries) to this node.
+         *
+         * @return a list of adjacent {@link GraphNode} objects
+         */
         public List<GraphNode> getNeighbors() {
             return neighbors;
         }
@@ -187,21 +263,29 @@ public class Graph {
 
     /**
      * Returns all GraphNodes in this graph.
+     *
+     * @return a Collection of all {@link GraphNode} objects in this graph
      */
     public Collection<GraphNode> getAllNodes() {
         return nodesById.values();
     }
 
     /**
-     * Returns the node for a given objectID, or null if none.
+     * Returns the node for a given objectID, or {@code null} if none exists.
+     *
+     * @param objectID the unique identifier of the property node
+     * @return the {@link GraphNode} with the specified objectID, or {@code null} if no node is found
      */
     public GraphNode getNodeByObjectID(int objectID) {
         return nodesById.get(objectID);
     }
 
     /**
-     * Returns the adjacency list (neighbors) for a given objectID,
-     * or an empty list if objectID is not found.
+     * Returns the adjacency list (neighbors) for the specified objectID,
+     * or an empty list if the objectID does not exist in the graph.
+     *
+     * @param objectID the unique identifier of the property node
+     * @return a list of neighbor {@link GraphNode} objects, or an empty list if not found
      */
     public List<GraphNode> getNeighbors(int objectID) {
         GraphNode node = nodesById.get(objectID);

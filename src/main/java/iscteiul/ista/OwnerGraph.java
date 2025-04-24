@@ -97,14 +97,23 @@ public class OwnerGraph {
     }
 
     /**
-     * Returns a set of owner IDs in the graph.
+     * Returns a set of all owner IDs currently in this graph.
+     *
+     * @return a {@code Set} containing each owner's unique integer ID
      */
     public Set<Integer> getOwners() {
         return graph.vertexSet();
     }
 
     /**
-     * Returns the neighbors (adjacent owners) of the given owner ID.
+     * Returns the set of adjacent owners (neighbors) for a given owner ID.
+     * <p>
+     * An adjacent owner is one who shares at least one pair of adjacent
+     * properties with the specified owner.
+     *
+     * @param ownerId the integer ID of the owner whose neighbors are sought
+     * @return a {@code Set} of owner IDs adjacent to the given {@code ownerId},
+     *         or an empty set if the owner does not exist or has no neighbors
      */
     public Set<Integer> getNeighbors(int ownerId) {
         if (!graph.containsVertex(ownerId)) {

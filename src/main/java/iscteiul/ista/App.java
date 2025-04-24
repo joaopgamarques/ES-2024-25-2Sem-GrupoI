@@ -36,7 +36,7 @@ public class App {
         List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.1.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
 
-        // 1a. Print distinct parishes and municipalities
+        // 1a. Print distinct parishes and municipalities.
         Set<String> distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);
         Set<String> distinctMunicipalities = PropertyUtils.getDistinctMunicipalities(propertyRecords);
         logger.info("Distinct Parishes: {}", distinctParishes);
@@ -44,24 +44,19 @@ public class App {
 
         // 2. Filter to a chosen parish.
         String chosenParish = "Canhas";
-
-        //podemos apagar-----
         List<PropertyRecord> parishSubset = propertyRecords.stream()
                 .filter(pr -> chosenParish.equals(pr.getParish()))
                 .collect(Collectors.toList());
         logger.info("Records in parish '{}': {}", chosenParish, parishSubset.size());
-        //podemos apagar-----
 
-
-        // 2a. Calculation of the average area of the properties by parish
+        // 2a. Calculate the average area of properties in the chosen parish (no adjacency grouping).
         List<PropertyRecord> parishProperties = PropertyUtils.findByParish(propertyRecords, chosenParish);
-        double mediaArea = PropertyUtils.calculateAverageArea(parishProperties);
-        logger.info("[NEW] Records in parish '{}': {}", chosenParish, parishProperties.size());
-        logger.info("[NEW] Average area (without group) by parish'{}': {}", chosenParish, mediaArea);
+        double averageArea = PropertyUtils.calculateAverageArea(parishProperties);
+        logger.info("Records in parish '{}': {}", chosenParish, parishProperties.size());
+        logger.info("Average area (no adjacency grouping) in parish '{}': {}", chosenParish, averageArea);
 
-        // 3. Build the graph from the parish subset.
+        // 3. Build the custom (O(N²)) Graph from the parish subset.
         Graph propertyGraph = new Graph(parishSubset);
-
 
         // 3a. Print adjacency for each node in propertyGraph.
         logger.info("Adjacency List for Each Node in the Subset:");
@@ -69,7 +64,7 @@ public class App {
             List<Integer> neighborIDs = node.getNeighbors().stream()
                     .map(Graph.GraphNode::getObjectID)
                     .collect(Collectors.toList());
-            logger.info("Node {} => Neighbors: {}", node.getObjectID(), neighborIDs);
+            // logger.info("Node {} => Neighbors: {}", node.getObjectID(), neighborIDs);
         }
 
         // 4. Pick a random PropertyRecord from the subset.
@@ -79,9 +74,9 @@ public class App {
         }
 
         Random random = new Random();
-        int randomIndex = random.nextInt(parishSubset.size());     // pick random index
+        int randomIndex = random.nextInt(parishSubset.size());
         PropertyRecord randomProperty = parishSubset.get(randomIndex);
-        int testObjectID = randomProperty.getObjectID();           // get that property’s ID
+        int testObjectID = randomProperty.getObjectID();
 
         logger.info("Randomly chosen objectID {} from parish '{}'", testObjectID, chosenParish);
 
@@ -90,7 +85,7 @@ public class App {
         String wkt = randomProperty.getGeometry();
         if (wkt != null) {
             try {
-                Geometry geom = wktReader.read(wkt );
+                Geometry geom = wktReader.read(wkt);
                 Point centroid = geom.getCentroid();
                 double cx = centroid.getX();
                 double cy = centroid.getY();
@@ -105,6 +100,7 @@ public class App {
                 logger.info(" -> municipality  = {}", randomProperty.getMunicipality());
                 logger.info(" -> island        = {}", randomProperty.getIsland());
                 logger.info(" -> centroid      = ({}, {})", cx, cy);
+
             } catch (ParseException e) {
                 logger.warn("Failed to parse WKT for objectID={}: {}",
                         randomProperty.getObjectID(), e.getMessage());
@@ -117,17 +113,13 @@ public class App {
                 .map(Graph.GraphNode::getObjectID)
                 .collect(Collectors.toSet());
 
-        // 6. List-based adjacency for the same record (using parishSubset to match the graph).
+        // 6. List-based adjacency check for the same record (using parishSubset).
         List<PropertyRecord> listNeighbors = PropertyUtils.findAdjacentProperties(randomProperty, parishSubset);
         Set<Integer> listNeighborIDs = listNeighbors.stream()
                 .map(PropertyRecord::getObjectID)
                 .collect(Collectors.toSet());
 
-        // 7. Print the results.
-        logger.info("Graph-based neighbors for objectID {}: {}", testObjectID, graphNeighborIDs);
-        logger.info("List-based neighbors for objectID {}: {}", testObjectID, listNeighborIDs);
-
-        // 8. Compare the sets.
+        // 7. Compare the sets.
         if (graphNeighborIDs.equals(listNeighborIDs)) {
             logger.info("Both methods agree on adjacency for objectID = {}", testObjectID);
         } else {
@@ -135,25 +127,33 @@ public class App {
                     testObjectID, graphNeighborIDs, listNeighborIDs);
         }
 
-        // Visualize the same subset using PropertyGraph + GraphVisualization.
-
-        // 9. Create a JGraphT-based PropertyGraph.
+        // 8. Build the JGraphT-based PropertyGraph (with STRtree-based adjacency).
         PropertyGraph propertyGraphJgt = new PropertyGraph();
-
-        // 10. Build the graph (uses STRtree + adjacency checks under the hood).
         propertyGraphJgt.buildGraph(parishSubset);
 
-        //10a. Calculation of the average area of the properties grouped by owner
-        org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = propertyGraphJgt.getGraph();
-        double av = PropertyUtils.calculateAverageGroupedArea(parishSubset, graph);
-        System.out.println("[NEW] Average area of properties by parish (grouped by owner) " + av);
-        if(mediaArea !=av)
-            System.out.println("[NEW] The averages are not the same:" + mediaArea+" " +av);
+        // 8a. Calculate the average area of properties grouped by owner.
+        org.jgrapht.Graph<PropertyRecord, DefaultEdge> jgtGraph = propertyGraphJgt.getGraph();
+        double averageGroupedArea = PropertyUtils.calculateAverageGroupedArea(parishSubset, jgtGraph);
+        System.out.println("Average area of properties in parish (grouped by owner): " + averageGroupedArea);
+        if (averageArea != averageGroupedArea) {
+            System.out.println("These averages differ: " + averageArea + " vs " + averageGroupedArea);
+        }
 
+        // 9. Build the owner graph using the same parish subset.
+        OwnerGraph ownerGraph = new OwnerGraph();
+        ownerGraph.buildGraph(parishSubset);
 
+        // 10. Check how many owners are in the graph.
+        System.out.println("Number of owners in the OwnerGraph: " + ownerGraph.getOwners().size());
 
-        // 11. Use GraphVisualization to display the result in a GraphStream window.
-        //     (this will appear in a small pop-up window with auto-layout)
+        // 11. Pick one owner's ID (from the first property) and see who they're adjacent to.
+        if (!parishSubset.isEmpty()) {
+            int someOwner = parishSubset.get(0).getOwner();
+            Set<Integer> ownerNeighbors = ownerGraph.getNeighbors(someOwner);
+            System.out.println("Owner " + someOwner + " is adjacent to owners: " + ownerNeighbors);
+        }
+
+        // 12. Visualize the STRtree-based property graph in GraphStream.
         GraphVisualization.visualizeGraph(propertyGraphJgt);
     }
 }

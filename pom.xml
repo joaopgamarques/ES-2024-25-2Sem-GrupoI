@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>iscteiul.ista</groupId>
@@ -8,14 +10,19 @@
   <version>1.0-SNAPSHOT</version>
 
   <name>ES-Project-TerritoryManagement</name>
-  <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
 
+  <!-- ──────────────────────── -->
+  <!-- General project settings -->
+  <!-- ──────────────────────── -->
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
   </properties>
 
+  <!-- ─────────────────────────────── -->
+  <!-- Dependency management & imports -->
+  <!-- ─────────────────────────────── -->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -28,18 +35,23 @@
     </dependencies>
   </dependencyManagement>
 
+  <!-- ───────────── -->
+  <!-- Dependencies  -->
+  <!-- ───────────── -->
   <dependencies>
+    <!-- JUnit 5 -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Optionally: parameterized tests support -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-params</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- Project libraries (unchanged) -->
     <dependency>
       <groupId>com.opencsv</groupId>
       <artifactId>opencsv</artifactId>
@@ -61,7 +73,6 @@
       <version>1.5.18</version>
       <scope>compile</scope>
     </dependency>
-    <!-- Dependência para JGraphT -->
     <dependency>
       <groupId>org.jgrapht</groupId>
       <artifactId>jgrapht-core</artifactId>
@@ -79,10 +90,12 @@
     </dependency>
   </dependencies>
 
+  <!-- ─────────── -->
+  <!-- Build setup -->
+  <!-- ─────────── -->
   <build>
-
     <plugins>
-      <!-- JaCoCo plugin for code coverage -->
+      <!-- JaCoCo plugin -->
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
@@ -90,24 +103,74 @@
         <executions>
           <execution>
             <goals>
-              <!-- prepare-agent: injects the JaCoCo agent for coverage -->
               <goal>prepare-agent</goal>
-              <!-- report: generates the coverage report after tests -->
               <goal>report</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
+
+      <!-- ──────────────────────── -->
+      <!-- PMD & CPD static analysis -->
+      <!-- ──────────────────────── -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>3.26.0</version>
+
+        <!-- Configuration -->
+        <configuration>
+          <!-- Fails the build when a rule is violated -->
+          <failOnViolation>false</failOnViolation>
+          <!-- Show violations in the console -->
+          <printFailingErrors>true</printFailingErrors>
+          <!-- Use PMD’s built-in quickstart ruleset.
+               Replace or extend with your own if needed. -->
+          <rulesets>
+            <ruleset>/rulesets/java/quickstart.xml</ruleset>
+          </rulesets>
+          <!-- tell PMD/CPD where JXR puts the cross-reference -->
+          <xrefLocation>${project.reporting.outputDirectory}/xref</xrefLocation>
+        </configuration>
+
+        <!-- Automatically run during 'verify' -->
+        <executions>
+          <execution>
+            <id>pmd-and-cpd</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>      <!-- PMD rules -->
+              <goal>cpd-check</goal>  <!-- copy/paste detection -->
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Add this right next to the JaCoCo and PMD plugins -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jxr-plugin</artifactId>
+        <version>3.3.1</version>
+
+        <!-- Generate xref early enough that PMD can find it -->
+        <executions>
+          <execution>
+            <id>generate-xref</id>
+            <phase>process-sources</phase>  <!-- or 'prepare-package', 'site', etc. -->
+            <goals><goal>jxr</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
 
-    <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+    <!-- Core plugin versions locked here (unchanged) -->
+    <pluginManagement>
       <plugins>
-        <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
           <version>3.4.0</version>
         </plugin>
-        <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
         <plugin>
           <artifactId>maven-resources-plugin</artifactId>
           <version>3.3.1</version>
@@ -132,7 +195,6 @@
           <artifactId>maven-deploy-plugin</artifactId>
           <version>3.1.2</version>
         </plugin>
-        <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
         <plugin>
           <artifactId>maven-site-plugin</artifactId>
           <version>3.12.1</version>
@@ -141,7 +203,6 @@
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>3.6.1</version>
         </plugin>
-
       </plugins>
     </pluginManagement>
   </build>

@@ -3,6 +3,7 @@
 A software application to **manage and optimize property data** in Portugal, featuring:
 
 - **Graph-Based Adjacency Checks**
+- **Owner-Adjacency Graph** (owners connected if they have adjacent parcels)
 - **Property Merging** (planned)
 - **Average Area Calculations**
 - **Exports to Gephi** for advanced visualization
@@ -34,15 +35,19 @@ This project focuses on analyzing and improving **territorial management** by lo
     - A **JGraphT**-based graph where each property is a **vertex**, and **edges** represent adjacency.
     - Uses an **R-tree** (`STRtree`) to efficiently find candidate neighbors in large datasets.
 
-6. **`GraphVisualization`**
+6. **`OwnerGraph`**
+    - Another **JGraphT**-based graph, but each node represents an **owner**.
+    - Creates edges between owners who share **at least one pair** of adjacent properties.
+
+7. **`GraphVisualization`**
     - Builds an **interactive GraphStream** visualization from a `PropertyGraph`.
     - Displays parcels (nodes) and their adjacency (edges), applying simple color rules for connected vs. isolated parcels.
 
-7. **`ExportToGephiDemo`**
+8. **`ExportToGephiDemo`**
     - Demonstrates creating a **GraphStream** graph from a filtered property list (e.g., by parish).
     - Exports the graph to `.gexf` for use in **Gephi**, enabling advanced layout and analytics.
 
-8. **`Graph`**
+9. **`Graph`**
     - A simpler adjacency-list approach, linking `PropertyRecord` nodes if they share a boundary.
     - Currently uses an O(N²) check; future improvements may include spatial indexing.
 
@@ -76,6 +81,7 @@ Identify potential property exchanges between owners to maximize the average pro
 **Graph Construction**
 - The `Graph` class (adjacency list) is ongoing; for large datasets, a more efficient approach (e.g., spatial index) is recommended.
 - The `PropertyGraph` class works but may need further testing for edge cases and performance tuning.
+- The `OwnerGraph` class currently links owners with adjacent properties, but further optimization or additional ownership checks may be desired.
 
 **Property Merging**
 - Not fully integrated; geometry-based merging logic remains a placeholder.

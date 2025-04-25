@@ -35,9 +35,22 @@ import java.util.stream.Collectors;
  *   <li>Any adjacency logic in {@code PropertyUtils} (like geometry-based adjacency checks).</li>
  * </ul>
  */
-public class ExportToGephiDemo {
+public final class ExportToGephiDemo {
 
     private static final Logger logger = LoggerFactory.getLogger(ExportToGephiDemo.class);
+
+    /**
+     * Private constructor to prevent instantiation.
+     * <p>
+     * Since this is a utility class providing only static methods,
+     * no instances should be created. The constructor immediately
+     * throws an {@link AssertionError}.
+     *
+     * @throws AssertionError always, since this constructor should never be called
+     */
+    private ExportToGephiDemo() {
+        throw new AssertionError("Utility class should not be instantiated");
+    }
 
     /**
      * Builds a GraphStream {@link Graph} from a list of {@link PropertyRecord} objects.

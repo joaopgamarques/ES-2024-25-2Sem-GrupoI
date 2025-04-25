@@ -24,7 +24,18 @@ import org.jgrapht.graph.DefaultEdge;
  * GraphVisualization.visualizeGraph(propertyGraph);
  * }</pre>
  */
-public class GraphVisualization {
+public final class GraphVisualization {
+
+    /**
+     * Private constructor to prevent instantiation.
+     * <p>
+     * This utility class holds only static methods for graph visualization.
+     *
+     * @throws AssertionError always, because this constructor should never be called.
+     */
+    private GraphVisualization() {
+        throw new AssertionError("Utility class - do not instantiate.");
+    }
 
     /**
      * Visualizes the given {@link PropertyGraph} in an interactive GraphStream window.

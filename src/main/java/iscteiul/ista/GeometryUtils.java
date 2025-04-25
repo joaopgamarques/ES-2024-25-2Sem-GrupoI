@@ -14,7 +14,16 @@ import org.slf4j.LoggerFactory;
  * on WKT (Well-Known Text) polygons, multipolygons, etc. It relies on the LocationTech JTS
  * library for parsing and geometric operations. All parse errors are logged via SLF4J.
  */
-public class GeometryUtils {
+public final class GeometryUtils {
+
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     *
+     * @throws AssertionError always, because this constructor should never be called.
+     */
+    private GeometryUtils() {
+        throw new AssertionError("Utility class - do not instantiate.");
+    }
 
     /**
      * SLF4J logger for this class, used for reporting parsing failures and debug info.

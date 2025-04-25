@@ -1,7 +1,5 @@
 package iscteiul.ista;
 
-import iscteiul.ista.GeometryUtils;
-import iscteiul.ista.PropertyRecord;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;

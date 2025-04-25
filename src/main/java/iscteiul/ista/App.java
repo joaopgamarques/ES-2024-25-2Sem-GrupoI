@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,12 +16,24 @@ import java.util.stream.Collectors;
 /**
  * The main entry point of the ES-Project-TerritoryManagement application.
  */
-public class App {
+public final class App {
 
     /**
      * SLF4J logger for the App class.
      */
     private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+    /**
+     * Private constructor to prevent instantiation.
+     * <p>
+     * Since this class is designed to be run from its static {@code main} method
+     * (and contains no instance fields), no objects should ever be created.
+     *
+     * @throws AssertionError always, since instantiation is not allowed
+     */
+    private App() {
+        throw new AssertionError("Utility class - do not instantiate.");
+    }
 
     /**
      * Main method: loads the CSV, filters by parish, builds a Graph,
@@ -57,15 +68,6 @@ public class App {
 
         // 3. Build the custom (O(N²)) Graph from the parish subset.
         Graph propertyGraph = new Graph(parishSubset);
-
-        // 3a. Print adjacency for each node in propertyGraph.
-        logger.info("Adjacency List for Each Node in the Subset:");
-        for (Graph.GraphNode node : propertyGraph.getAllNodes()) {
-            List<Integer> neighborIDs = node.getNeighbors().stream()
-                    .map(Graph.GraphNode::getObjectID)
-                    .collect(Collectors.toList());
-            // logger.info("Node {} => Neighbors: {}", node.getObjectID(), neighborIDs);
-        }
 
         // 4. Pick a random PropertyRecord from the subset.
         if (parishSubset.isEmpty()) {

@@ -20,9 +20,16 @@ public final class PropertyUtils {
     /**
      * Private constructor to prevent instantiation,
      * as this is intended to be a static utility class.
+     * <p>
+     * Since all methods in this class are static and no instance fields
+     * exist, there is no purpose in creating an object of this class.
+     * Consequently, calling this constructor always results in an
+     * {@link AssertionError}.
+     *
+     * @throws AssertionError always, since this constructor should never be called
      */
     private PropertyUtils() {
-        // no-op
+        throw new AssertionError("Utility class - do not instantiate.");
     }
 
     /**

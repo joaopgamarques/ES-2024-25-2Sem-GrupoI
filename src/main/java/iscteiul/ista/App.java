@@ -47,6 +47,19 @@ public final class App {
         List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.1.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
 
+        /*
+         * Specify connection details for your local PostgreSQL/PostGIS database:
+         * - url: JDBC string with host=localhost, port=5432, database=postgres
+         * - user: typically "postgres" unless you created another DB user
+         * - pass: the password you set during PostgreSQL install or user creation
+         */
+        // Insert records into PostGIS database.
+        PostGISReader.insertPropertyRecords(propertyRecords,
+                "jdbc:postgresql://localhost:5432/postgres?currentSchema=propertiesdb",
+                "postgres",
+                "ES2425GI"
+        );
+
         // 1a. Print distinct parishes and municipalities.
         Set<String> distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);
         Set<String> distinctMunicipalities = PropertyUtils.getDistinctMunicipalities(propertyRecords);

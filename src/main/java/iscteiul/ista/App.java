@@ -54,11 +54,8 @@ public final class App {
          * - pass: the password you set during PostgreSQL install or user creation
          */
         // Insert records into PostGIS database.
-        PostGISReader.insertPropertyRecords(propertyRecords,
-                "jdbc:postgresql://localhost:5432/postgres?currentSchema=propertiesdb",
-                "postgres",
-                "ES2425GI"
-        );
+        // PostGISReader.insertPropertyRecords(propertyRecords,
+        //        "jdbc:postgresql://localhost:5432/postgres?currentSchema=propertiesdb", "postgres", "ES2425GI");
 
         // 1a. Print distinct parishes and municipalities.
         Set<String> distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);

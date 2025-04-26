@@ -4,108 +4,222 @@ import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * A JUnit 5 test class demonstrating how to test {@link PostGISReader}
- * with live PostgreSQL/PostGIS environment. Requires:
+ * <h2>PostGISReaderTest &mdash; Integration Tests for {@link PostGISReader}</h2>
+ *
+ * <p>This test class demonstrates end-to-end verification of the
+ * {@link PostGISReader} functionality in a real PostgreSQL/PostGIS environment.
+ * Specifically, it:</p>
+ * <ol>
+ *   <li>Clears any stray test rows from prior runs and inserts a small set of
+ *       known test geometries ({@code #101}, {@code #102}, {@code #103}).</li>
+ *   <li>Executes queries using the four core spatial predicates
+ *       (<em>ST_Touches</em>, <em>ST_Intersects</em>, <em>ST_Overlaps</em>,
+ *       <em>ST_Contains</em>) against object {@code #101}.</li>
+ *   <li>Verifies that the returned neighbor object IDs match the expected
+ *       set. For example, {@code #101} "touches" {@code #102}, but does not
+ *       overlap it.</li>
+ *   <li>Removes the test data afterward, ensuring repeated test executions
+ *       remain consistent (idempotent).</li>
+ * </ol>
+ *
+ * <p><strong>Important:</strong> To run these tests, you need:</p>
  * <ul>
- *   <li>An accessible PostgreSQL database with PostGIS enabled,
- *       e.g. "jdbc:postgresql://localhost:5432/postgres?currentSchema=propertiesdb"</li>
- *   <li>A table named "propertiesdb.properties" matching the columns in PostGISReader</li>
- *   <li>A user/password that can insert rows</li>
+ *   <li>A running PostgreSQL server with PostGIS extension enabled.</li>
+ *   <li>The {@code properties} table defined in the <em>public</em> schema, or
+ *       update the constants in this file (and in {@link PostGISReader}) to match
+ *       your DB schema or credentials.</li>
  * </ul>
  *
- * <p><strong>Disclaimer:</strong> This is an <em>integration test</em> that
- * depends on a live database. If such a DB is not available, it will fail.</p>
+ * @author
+ *   Integration-Test Team (2025) &mdash; Update to your actual team name/author
  */
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class PostGISReaderTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(PostGISReaderTest.class);
+    /**
+     * The JDBC URL to connect to the PostgreSQL database, specifying the
+     * {@code public} schema as the search path.
+     */
+    private static final String JDBC_URL =
+            "jdbc:postgresql://localhost:5432/postgres?currentSchema=public";
 
-    // Adjust to match your local or test DB
-    private static final String JDBC_URL = "jdbc:postgresql://localhost:5432/postgres?currentSchema=propertiesdb";
+    /** Database username (with insert/select/delete privileges). */
     private static final String DB_USER  = "postgres";
+
+    /** Password corresponding to {@link #DB_USER}. */
     private static final String DB_PASS  = "ES2425GI";
 
     /**
-     * A small utility method to clear the propertiesdb.properties table.
-     * Useful for ensuring test isolation.
+     * A logger for printing diagnostic information during test execution.
+     */
+    private static final Logger LOG = LoggerFactory.getLogger(PostGISReaderTest.class);
+
+    /**
+     * A minimal set of sample polygons:
+     * <ul>
+     *   <li><strong>#101</strong> is a square from (0,0) to (1,1).</li>
+     *   <li><strong>#102</strong> shares a boundary with #101 at x=1.</li>
+     *   <li><strong>#103</strong> is far away, located at (10,10) to (11,11).</li>
+     * </ul>
+     */
+    private static final List<PropertyRecord> SAMPLE = List.of(
+            new PropertyRecord(
+                    101,        /* objectID */
+                    1L,         /* parcelID */
+                    1L,         /* parcelNumber */
+                    0,          /* shapeLength (unused in these tests) */
+                    0,          /* shapeArea   (unused in these tests) */
+                    "POLYGON((0 0,0 1,1 1,1 0,0 0))",  /* geometry (square) */
+                    1,          /* owner */
+                    "Parish", "Municip", "Island"
+            ),
+            new PropertyRecord(
+                    102,
+                    2L,
+                    2L,
+                    0,
+                    0,
+                    "POLYGON((1 0,1 1,2 1,2 0,1 0))",  /* geometry (touches #101) */
+                    2,
+                    "Parish", "Municip", "Island"
+            ),
+            new PropertyRecord(
+                    103,
+                    3L,
+                    3L,
+                    0,
+                    0,
+                    "POLYGON((10 10,10 11,11 11,11 10,10 10))", /* far away square */
+                    3,
+                    "Parish", "Municip", "Island"
+            )
+    );
+
+    /**
+     * Inserts {@code SAMPLE} data into the table before all tests, ensuring a
+     * known starting state. Also cleans up any prior copies of these IDs to
+     * avoid duplication across runs.
      *
-     * @throws SQLException if there's an issue connecting or executing
+     * @throws SQLException if any DB operation fails.
      */
-    private void truncatePropertiesTable() throws SQLException {
-        String sql = "TRUNCATE propertiesdb.properties";
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
-             Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
-        }
+    @BeforeAll
+    static void setUpOnce() throws SQLException {
+        cleanUpSampleRows();
+        PostGISReader.insertPropertyRecords(SAMPLE);
+        LOG.info("Test data (#101, #102, #103) inserted.");
     }
 
     /**
-     * Runs before each test to clear existing rows,
-     * ensuring each test starts from an empty table.
+     * Removes the inserted rows from the DB after all tests have run, leaving
+     * the database in a clean state. Without this cleanup step, repeated test
+     * runs could accumulate duplicates or cause unexpected failures.
+     *
+     * @throws SQLException if any DB operation fails.
      */
-    @BeforeEach
-    void setUp() {
-        try {
-            truncatePropertiesTable();
-        } catch (SQLException e) {
-            logger.error("Error clearing properties table before test", e);
-        }
+    @AfterAll
+    static void tearDownOnce() throws SQLException {
+        cleanUpSampleRows();
+        LOG.info("Test data (#101, #102, #103) removed. DB is clean.");
     }
 
     /**
-     * Example test that calls {@link PostGISReader#insertPropertyRecords(List, String, String, String)}
-     * with a small list of in-memory {@link PropertyRecord} objects, then verifies the row count
-     * in the database matches the inserted records (excluding any skipped due to null geometry).
+     * Tests the result of {@link PostGISReader#findTouching(int)} for object #101.
+     * Expects it to return exactly one neighbor: object #102.
      */
     @Test
-    void testInsertPropertyRecords() {
-        // 1) Create sample PropertyRecords
-        List<PropertyRecord> sampleRecords = new ArrayList<>();
-
-        // geometry WKT: basic MULTIPOLYGON or POLYGON example
-        // For real data, ensure valid WKT matching geometry(MultiPolygon,4326)
-        String wkt1 = "MULTIPOLYGON (((0 0,0 1,1 1,1 0,0 0)))";
-        String wkt2 = "MULTIPOLYGON (((1 1,1 2,2 2,2 1,1 1)))";
-        String wktEmpty = "";  // This one should be skipped (null geometry check)
-
-        sampleRecords.add(new PropertyRecord(100, 101L,  999L,  50.0,  25.0,  wkt1,  500, "ParishTest", "MunicipTest", "IslandA"));
-        sampleRecords.add(new PropertyRecord(101, 102L, 1000L, 60.0,  30.0,  wkt2,  501, "ParishTest", "MunicipTest", "IslandB"));
-        sampleRecords.add(new PropertyRecord(102, 103L, 1001L, 70.0,  35.0,  wktEmpty, 502, "ParishTest", "MunicipTest", "IslandC"));
-
-        // 2) Insert them
-        PostGISReader.insertPropertyRecords(sampleRecords, JDBC_URL, DB_USER, DB_PASS);
-
-        // 3) Verify we have exactly 2 rows in the DB (since one geometry was empty, it gets skipped).
-        int rowCount = countRowsInPropertiesTable();
-        assertEquals(2, rowCount,
-                "We expected 2 inserted rows in propertiesdb.properties (skipped the empty geometry).");
+    @Order(1)
+    @DisplayName("ST_Touches → 101 ↔ 102")
+    void touchesShouldFind102() {
+        Set<Integer> ids = toObjectIds(PostGISReader.findTouching(101));
+        assertEquals(
+                Set.of(102),
+                ids,
+                "Object #101 must touch exactly #102 (and nothing else)."
+        );
     }
 
     /**
-     * A helper method to count rows in "propertiesdb.properties".
-     *
-     * @return the number of rows currently in that table
-     * @throws RuntimeException if an error occurs
+     * Tests the result of {@link PostGISReader#findIntersecting(int)} for object #101.
+     * Since adjacency along a shared boundary also counts as intersection,
+     * #102 should appear in the results, and #103 should not.
      */
-    private int countRowsInPropertiesTable() {
-        String sql = "SELECT COUNT(*) FROM propertiesdb.properties";
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+    @Test
+    @Order(2)
+    @DisplayName("ST_Intersects → 101 ↔ 102 (boundary counts)")
+    void intersectsShouldFind102() {
+        Set<Integer> ids = toObjectIds(PostGISReader.findIntersecting(101));
+        assertEquals(
+                Set.of(102),
+                ids,
+                "Object #101 must intersect exactly #102 (shared boundary)."
+        );
+    }
 
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-            return 0;
-        } catch (SQLException e) {
-            throw new RuntimeException("Error counting rows in propertiesdb.properties", e);
+    /**
+     * Tests {@link PostGISReader#findOverlapping(int)} for object #101.
+     * Because #101 and #102 share only a boundary (and do not overlap in
+     * the interior), this query should return an empty list.
+     */
+    @Test
+    @Order(3)
+    @DisplayName("ST_Overlaps → none for 101")
+    void overlapsShouldBeEmpty() {
+        var found = PostGISReader.findOverlapping(101);
+        assertTrue(
+                found.isEmpty(),
+                "#101 shares only a boundary with #102, so no overlap; #103 is far away."
+        );
+    }
+
+    /**
+     * Tests {@link PostGISReader#findContained(int)} for object #101.
+     * Neither #102 nor #103 is fully inside #101's polygon, so the
+     * list of contained objects should be empty.
+     */
+    @Test
+    @Order(4)
+    @DisplayName("ST_Contains → none for 101")
+    void containsShouldBeEmpty() {
+        var found = PostGISReader.findContained(101);
+        assertTrue(
+                found.isEmpty(),
+                "#101 does not fully contain #102 or #103."
+        );
+    }
+
+    /**
+     * A convenience method that converts a list of {@link PropertyRecord}
+     * into a set of their {@code objectID} values. Useful for concise
+     * set comparisons in test assertions.
+     */
+    private static Set<Integer> toObjectIds(List<PropertyRecord> records) {
+        return records.stream()
+                .map(PropertyRecord::getObjectID)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Deletes sample rows (objectID in {101,102,103}) from the database table,
+     * so tests can run repeatedly without duplicating data. This is called
+     * from both {@code @BeforeAll} and {@code @AfterAll}.
+     *
+     * @throws SQLException if the DELETE operation fails.
+     */
+    private static void cleanUpSampleRows() throws SQLException {
+        String sql = "DELETE FROM public.properties WHERE objectid IN (101, 102, 103)";
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             var stmt = c.createStatement()) {
+            stmt.executeUpdate(sql);
         }
     }
 }

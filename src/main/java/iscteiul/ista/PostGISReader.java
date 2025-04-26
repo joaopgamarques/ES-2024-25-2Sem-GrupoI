@@ -3,130 +3,326 @@ package iscteiul.ista;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 /**
- * A utility class that inserts {@link PropertyRecord} objects into a
- * PostgreSQL/PostGIS database. It assumes you have:
- * <ul>
- *   <li>A database named "postgres" (or another name) with {@code CREATE EXTENSION postgis;}</li>
- *   <li>A schema named "propertiesdb" (or your choice) inside that database</li>
- *   <li>A table named "propertiesdb.properties" with matching columns:
- *     <pre>objectid, parcelid, parcelnumber, shapelength, shapearea,
- * geometry, owner, parish, municipality, island</pre>
+ * <h2>PostGISReader &ndash; Bulk Loader and Neighbor Finder</h2>
+ *
+ * <p>This <strong>static-only</strong> helper class provides functionality to:</p>
+ * <ol>
+ *   <li><strong>Insert</strong> a list of {@link PropertyRecord} objects into a PostGIS table
+ *       (<em>see {@link #TABLE_SCHEMA}</em> and {@link #TABLE_NAME} for details).</li>
+ *   <li><strong>Query</strong> that table for neighboring parcels using
+ *       standard PostGIS spatial predicates:
+ *       <ul>
+ *         <li>{@code ST_Touches}</li>
+ *         <li>{@code ST_Intersects}</li>
+ *         <li>{@code ST_Overlaps}</li>
+ *         <li>{@code ST_Contains}</li>
+ *       </ul>
  *   </li>
- *   <li>A geometry column declared as {@code geometry(MultiPolygon,4326)} (or your geometry type)</li>
- * </ul>
+ * </ol>
+ *
+ * <h3>Pre-requisites</h3>
+ * <ol>
+ *   <li><strong>PostGIS Extension</strong>:
+ *       {@code CREATE EXTENSION IF NOT EXISTS postgis;}</li>
+ *   <li><strong>Table Definition</strong>: The table
+ *       {@value #TABLE_NAME} (adjust schema if not using {@code public}):
+ *       <pre>{@code
+ *       CREATE TABLE IF NOT EXISTS public.properties (
+ *           objectid      INT PRIMARY KEY,
+ *           parcelid      BIGINT,
+ *           parcelnumber  BIGINT,
+ *           shapelength   DOUBLE PRECISION,
+ *           shapearea     DOUBLE PRECISION,
+ *           geometry      geometry(MultiPolygon,4326),
+ *           owner         INT,
+ *           parish        TEXT,
+ *           municipality  TEXT,
+ *           island        TEXT
+ *       );
+ *       }</pre>
+ *   </li>
+ * </ol>
+ *
+ * <p>Adjust the constants {@link #TABLE_SCHEMA}, {@link #TABLE_NAME},
+ * and the connection details if your database settings differ.</p>
+ *
+ * <p><strong>Author:</strong> Your Name (2025)</p>
  */
 public final class PostGISReader {
 
-    /**
-     * SLF4J logger for reporting successes, warnings, and errors.
+    /*
+     * ──────────────────────────── CONFIGURATION ─────────────────────────────
      */
-    private static final Logger logger = LoggerFactory.getLogger(PostGISReader.class);
+
+    /** The schema containing the "properties" table. Adjust as needed. */
+    private static final String TABLE_SCHEMA = "public";
+
+    /** Fully-qualified table name "<schema>.properties". */
+    private static final String TABLE_NAME = TABLE_SCHEMA + ".properties";
 
     /**
-     * Private constructor to prevent instantiation, as this class is
-     * intended only for static insertion methods.
+     * A JDBC URL pointing to the <em>postgres</em> database with the given
+     * schema set as the <em>search_path</em>. Update host/port/db name if needed.
+     */
+    private static final String JDBC_URL =
+            "jdbc:postgresql://localhost:5432/postgres?currentSchema=" + TABLE_SCHEMA;
+
+    /**
+     * Postgres user and password, which must have the privileges necessary
+     * to create and query geometry columns in the specified schema.
+     */
+    private static final String DB_USER = "postgres";
+    private static final String DB_PASS = "ES2425GI";
+
+    /** SLF4J Logger for this class. */
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostGISReader.class);
+
+    /**
+     * Private constructor prevents instantiation. This is a static utility class.
      *
-     * @throws AssertionError always, since instantiation is disallowed
+     * @throws AssertionError always (if called by reflection or otherwise)
      */
     private PostGISReader() {
         throw new AssertionError("Utility class - do not instantiate.");
     }
 
-    /**
-     * Inserts each {@link PropertyRecord} into a PostGIS table named
-     * {@code propertiesdb.properties}. The table must have columns:
-     * <pre>
-     *   objectid      (INT)
-     *   parcelid      (BIGINT)
-     *   parcelnumber  (BIGINT)
-     *   shapelength   (DOUBLE PRECISION)
-     *   shapearea     (DOUBLE PRECISION)
-     *   geometry      (geometry(MultiPolygon,4326)) or your geometry type
-     *   owner         (INT)
-     *   parish        (TEXT)
-     *   municipality  (TEXT)
-     *   island        (TEXT)
-     * </pre>
-     *
-     * <p>The geometry is inserted by calling
-     * {@code public.ST_GeomFromText(?::text, 4326)}, thus casting the WKT
-     * string to {@code text} and specifying SRID 4326.</p>
-     *
-     * <p>Ensure you run
-     * {@code CREATE EXTENSION IF NOT EXISTS postgis;} in your database
-     * beforehand.</p>
-     *
-     * @param records a List of {@link PropertyRecord} objects, presumably parsed from CSV
-     * @param jdbcUrl a JDBC connection string, e.g.
-     *                {@code "jdbc:postgresql://localhost:5432/postgres?currentSchema=propertiesdb"}
-     *                so you're in the {@code postgres} database and
-     *                the search path is set to {@code propertiesdb}.
-     * @param dbUser  the PostgreSQL user, typically "postgres" or another DB user
-     * @param dbPass  the password for {@code dbUser}
+    /*
+     * ─────────────────────────── BULK INSERT ────────────────────────────
      */
-    public static void insertPropertyRecords(
-            List<PropertyRecord> records,
-            String jdbcUrl,
-            String dbUser,
-            String dbPass
-    ) {
 
-        // SQL statement referencing the fully qualified function: public.ST_GeomFromText
-        // and casting ? to text => ?::text
-        // so the table name is "propertiesdb.properties"
-        // geometry is derived by ST_GeomFromText(?::text, 4326)
-        final String insertSql =
-                "INSERT INTO propertiesdb.properties (" +
-                        " objectid, parcelid, parcelnumber, shapelength, shapearea," +
-                        " geometry, owner, parish, municipality, island" +
+    /**
+     * Inserts each {@link PropertyRecord} into the PostGIS table {@value #TABLE_NAME}.
+     * The geometry column is populated by invoking {@code ST_GeomFromText(?::text, 4326)}.
+     *
+     * <p>Records that lack a non-empty {@link PropertyRecord#getGeometry() geometry} field
+     * are skipped with a warning. Adjust logic if you need to handle those cases differently.</p>
+     *
+     * @param records a list of {@link PropertyRecord} objects to be inserted
+     *                (each must have valid WKT geometry in {@link PropertyRecord#getGeometry()})
+     */
+    public static void insertPropertyRecords(List<PropertyRecord> records) {
+        final String sql =
+                "INSERT INTO " + TABLE_NAME + " (" +
+                        "    objectid, parcelid, parcelnumber, shapelength, shapearea," +
+                        "    geometry, owner, parish, municipality, island" +
                         ") VALUES (" +
-                        " ?, ?, ?, ?, ?," +
-                        " public.ST_GeomFromText(?::text, 4326), ?, ?, ?, ?" +
+                        "    ?, ?, ?, ?, ?," +
+                        "    ST_GeomFromText(?::text,4326), ?, ?, ?, ?" +
                         ")";
 
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
+        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            int insertedCount = 0;
-
-            for (PropertyRecord rec : records) {
-                String wkt = rec.getGeometry();
-
-                // If geometry is missing or invalid, you can skip or handle differently
-                if (wkt == null || wkt.trim().isEmpty()) {
-                    logger.warn("Skipping objectID={} due to null/empty geometry", rec.getObjectID());
+            int inserted = 0;
+            for (PropertyRecord record : records) {
+                // If geometry is missing or blank, skip the row.
+                String wkt = record.getGeometry();
+                if (wkt == null || wkt.isBlank()) {
+                    LOGGER.warn("Skipping objectID={} due to null/empty geometry",
+                            record.getObjectID());
                     continue;
                 }
 
-                // Prepare the parameters for each column in order:
-                pstmt.setInt(1, rec.getObjectID());
-                pstmt.setLong(2, rec.getParcelID());
-                pstmt.setLong(3, rec.getParcelNumber());
-                pstmt.setDouble(4, rec.getShapeLength());
-                pstmt.setDouble(5, rec.getShapeArea());
-                // geometry: pass WKT as text => ?::text
-                pstmt.setString(6, wkt);
+                // Fill the placeholders in the PreparedStatement.
+                ps.setInt(1,    record.getObjectID());
+                ps.setLong(2,   record.getParcelID());
+                ps.setLong(3,   record.getParcelNumber());
+                ps.setDouble(4, record.getShapeLength());
+                ps.setDouble(5, record.getShapeArea());
+                ps.setString(6, wkt); // geometry => ST_GeomFromText(?::text,4326)
+                ps.setInt(7,    record.getOwner());
+                ps.setString(8, record.getParish());
+                ps.setString(9, record.getMunicipality());
+                ps.setString(10,record.getIsland());
 
-                pstmt.setInt(7, rec.getOwner());
-                pstmt.setString(8, rec.getParish());
-                pstmt.setString(9, rec.getMunicipality());
-                pstmt.setString(10, rec.getIsland());
-
-                pstmt.executeUpdate();
-                insertedCount++;
+                ps.addBatch();
+                inserted++;
             }
 
-            logger.info("Successfully inserted {} PropertyRecord(s) into PostGIS!", insertedCount);
+            // Execute all batched inserts at once.
+            ps.executeBatch();
+            LOGGER.info("Inserted {} rows into {}", inserted, TABLE_NAME);
 
         } catch (SQLException e) {
-            logger.error("Database insertion error", e);
+            LOGGER.error("Bulk insert into {} failed.", TABLE_NAME, e);
         }
+    }
+
+    /*
+     * ──────────────────── NEIGHBOR QUERY WRAPPERS ─────────────────────
+     */
+
+    /**
+     * Finds all parcels in the database that <em>touch</em> (share a boundary
+     * but do not overlap) the parcel whose {@code objectID} is given.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that touch the reference parcel
+     */
+    public static List<PropertyRecord> findTouching(int objectId) {
+        return queryNeighbours(objectId, "ST_Touches");
+    }
+
+    /**
+     * Finds all parcels that <em>intersect</em> (share any point) the parcel
+     * whose {@code objectID} is given.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that intersect the reference parcel
+     */
+    public static List<PropertyRecord> findIntersecting(int objectId) {
+        return queryNeighbours(objectId, "ST_Intersects");
+    }
+
+    /**
+     * Finds all parcels that <em>overlap</em> the parcel whose {@code objectID}
+     * is given. Overlapping implies partial interior intersection but not full
+     * containment.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that overlap the reference parcel
+     */
+    public static List<PropertyRecord> findOverlapping(int objectId) {
+        return queryNeighbours(objectId, "ST_Overlaps");
+    }
+
+    /**
+     * Finds all parcels that are <em>contained within</em> the geometry of
+     * the parcel whose {@code objectID} is given. This uses {@code ST_Contains(A,B)},
+     * meaning A (the reference) fully encloses B.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that lie inside the reference parcel
+     */
+    public static List<PropertyRecord> findContained(int objectId) {
+        return queryNeighbours(objectId, "ST_Contains");
+    }
+
+    /*
+     * ───────────────────── INTERNAL QUERY LOGIC ───────────────────────
+     */
+
+    /**
+     * A generic method to find the "neighboring" parcels (rows) in the database
+     * that satisfy {@code postgisFn(a.geometry, b.geometry)=TRUE} for a given
+     * reference {@code objectId}. The table is self-joined as 'a' and 'b'.
+     *
+     * @param objectId  the reference parcel's ID
+     * @param postgisFn the name of the spatial function (e.g., "ST_Touches")
+     * @return a list of matching neighbors from the DB
+     */
+    private static List<PropertyRecord> queryNeighbours(int objectId, String postgisFn) {
+        final String sql =
+                "SELECT b.objectid, b.parcelid, b.parcelnumber, b.shapelength, b.shapearea," +
+                        "       ST_AsText(b.geometry) AS geometry," +
+                        "       b.owner, b.parish, b.municipality, b.island " +
+                        "  FROM " + TABLE_NAME + " a " +
+                        "  JOIN " + TABLE_NAME + " b " +
+                        "    ON " + postgisFn + "(a.geometry, b.geometry)" +
+                        "   AND a.objectid <> b.objectid " +
+                        " WHERE a.objectid = ?";
+
+        List<PropertyRecord> result = new ArrayList<>();
+
+        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, objectId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapRowToPropertyRecord(rs));
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Neighbour query failed (function={}, objectID={})",
+                    postgisFn, objectId, e);
+        }
+        return result;
+    }
+
+    /**
+     * Maps the columns of a {@link ResultSet} row into a {@link PropertyRecord}.
+     *
+     * @param rs the ResultSet positioned at a valid row
+     * @return a new {@link PropertyRecord} constructed from row data
+     * @throws SQLException if any column is missing or invalid
+     */
+    private static PropertyRecord mapRowToPropertyRecord(ResultSet rs) throws SQLException {
+        return new PropertyRecord(
+                rs.getInt   ("objectid"),
+                rs.getLong  ("parcelid"),
+                rs.getLong  ("parcelnumber"),
+                rs.getDouble("shapelength"),
+                rs.getDouble("shapearea"),
+                rs.getString("geometry"),
+                rs.getInt   ("owner"),
+                rs.getString("parish"),
+                rs.getString("municipality"),
+                rs.getString("island")
+        );
+    }
+
+    /**
+     * Minimal command-line demonstration:
+     * <ol>
+     *   <li>Reads the CSV (via {@link CSVFileReader}) into memory.</li>
+     *   <li>(Optional) calls {@link #insertPropertyRecords(List)} exactly once
+     *       to populate the database table.</li>
+     *   <li>Prompts for an <code>objectID</code> and prints neighbors for four
+     *       standard predicates:
+     *       {@code ST_Touches}, {@code ST_Intersects}, {@code ST_Overlaps}, {@code ST_Contains}.</li>
+     * </ol>
+     *
+     * <p>Adapt or remove if you have a different application entry point.</p>
+     *
+     * @param args ignored
+     */
+    public static void main(String[] args) {
+
+        // 1) Read CSV
+        List<PropertyRecord> rows = new CSVFileReader()
+                .importData("/Madeira-Moodle-1.1.csv");
+        LOGGER.info("CSV rows read: {}", rows.size());
+
+        // 2) Optionally, uncomment once to populate the table
+        // insertPropertyRecords(rows);
+
+        // 3) Interactive neighbor queries
+        try (Scanner sc = new Scanner(System.in)) {
+            while (true) {
+                System.out.print("\nObjectID to inspect (0 = quit): ");
+                int id = sc.nextInt();
+                if (id == 0) {
+                    break;
+                }
+
+                printResults("TOUCHING",      findTouching(id));
+                printResults("INTERSECTING",  findIntersecting(id));
+                printResults("OVERLAPPING",   findOverlapping(id));
+                printResults("CONTAINED",     findContained(id));
+            }
+        }
+
+        System.out.println("Done — goodbye!");
+    }
+
+    /**
+     * Prints a list of {@link PropertyRecord} object IDs to the console,
+     * preceded by a user-supplied label.
+     *
+     * @param label a short descriptive label (e.g. "TOUCHING")
+     * @param list  a list of matching parcels
+     */
+    private static void printResults(String label, List<PropertyRecord> list) {
+        System.out.println('\n' + label + " parcels: " +
+                (list.isEmpty() ? "(none)" : list.size()));
+        list.forEach(p -> System.out.println("  — objectID=" + p.getObjectID()));
     }
 }

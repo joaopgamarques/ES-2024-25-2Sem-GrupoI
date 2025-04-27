@@ -7,6 +7,7 @@ A software application to **manage and optimize property data** in Portugal, fea
 - **Property Merging** (planned)
 - **Average Area Calculations**
 - **Exports to Gephi** for advanced visualization
+- **PostGIS Integration** for advanced spatial queries
 
 ---
 
@@ -26,7 +27,7 @@ This project focuses on analyzing and improving **territorial management** by lo
     - Immutable model class holding property attributes (objectID, parcelID, geometry, owner, parish, etc.).
 
 3. **`PropertyUtils`**
-    - Static methods for filtering, adjacency checks, and other property-related utilities.
+    - Static methods for filtering, adjacency checks, grouping, and other property-related utilities (e.g. computing average areas).
 
 4. **`GeometryUtils`**
     - Handles low-level geometry operations (parsing WKT, creating envelopes, checking adjacency) via **LocationTech JTS**.
@@ -51,6 +52,14 @@ This project focuses on analyzing and improving **territorial management** by lo
     - A simpler adjacency-list approach, linking `PropertyRecord` nodes if they share a boundary.
     - Currently uses an O(N²) check; future improvements may include spatial indexing.
 
+10. **`PostGISReader`**
+- Provides **PostGIS** functionality to insert, query, and manipulate parcel geometry in a PostgreSQL/PostGIS database:
+    - **Bulk Insert** (`insertPropertyRecords`) for reading CSV-derived records into the DB.
+    - **Spatial Relationship Queries** (`findTouching`, `findIntersecting`, `findOverlapping`, `findContained`).
+    - **Union & Intersection** (`unionByOwner`, `intersection`) to merge or compute intersecting geometries.
+    - **Distance & Proximity** (`distance`, `withinDistance`) for measuring how close parcels are.
+    - **Area & Centroid** (`area`, `centroid`) to compute parcel surface area and the WKT centroid.
+
 ---
 
 ## Installation & Dependencies
@@ -60,38 +69,74 @@ All dependencies are managed via **Maven**. You’ll find them in the [pom.xml](
 - **OpenCSV** for CSV parsing.
 - **LocationTech JTS** for geometry operations (e.g., adjacency, intersection checks).
 - **SLF4J + Logback** for logging.
-- **JUnit 5** for unit testing.
+- **JUnit 5** for unit and integration testing.
 - **JGraphT** for constructing and storing property graphs.
 - **GraphStream** for visualizing and exporting `.gexf`.
+- **PostgreSQL JDBC** for connecting to a PostGIS-enabled database.
 
 ---
 
 ## Planned Features
 
-**Property Merging**  
-Combine contiguous parcels owned by the same owner into a larger, single record.
+1. **Property Merging**  
+   Combine contiguous parcels owned by the same owner into a larger, single record.
 
-**Swap Suggestions**  
-Identify potential property exchanges between owners to maximize the average property area per owner.
+2. **Swap Suggestions**  
+   Identify potential property exchanges between owners to maximize the average property area per owner.
 
 ---
 
 ## Known Issues & Incomplete Features
 
-**Graph Construction**
-- The `Graph` class (adjacency list) is ongoing; for large datasets, a more efficient approach (e.g., spatial index) is recommended.
-- The `PropertyGraph` class works but may need further testing for edge cases and performance tuning.
-- The `OwnerGraph` class currently links owners with adjacent properties, but further optimization or additional ownership checks may be desired.
+- **Graph Construction**  
+  The `Graph` class uses O(N²) adjacency checks. For large datasets, a more efficient approach (e.g., an R-tree) would be needed. The `PropertyGraph` does support STRtree, but might still require performance tuning for very large data.
 
-**Property Merging**
-- Not fully integrated; geometry-based merging logic remains a placeholder.
+- **Property Merging**  
+  Not fully integrated yet; geometry-based merging logic remains a placeholder.
 
-**Swap Suggestions**
-- Algorithmic design is in progress; not implemented yet.
+- **Swap Suggestions**  
+  Algorithmic design is still in progress; not implemented yet. Will consider property areas plus 2+ characteristics.
 
-**Tests**
-- Some integration tests (involving both geometry checks and adjacency) remain to be written.
-- Additional unit tests for edge cases are on the roadmap.
+- **Tests**  
+  Some integration tests (involving both geometry checks and adjacency) remain to be expanded.  
+  Additional unit tests for edge cases are on the roadmap.
+
+---
+
+## PostGIS Reader – Latest Pull Request Highlights
+
+### Spatial Relationship Queries
+
+Thanks to the recent **Pull Request** (“Complete `PostGISReader` Spatial Functions”):
+
+1. **Bulk Insert**
+    - `insertPropertyRecords(...)` uses `ST_GeomFromText(?::text,4326)` to store geometry in a PostGIS table.
+
+2. **Spatial Predicates**
+    - `findTouching(...)`, `findIntersecting(...)`, `findOverlapping(...)`, and `findContained(...)` map to `ST_Touches`, `ST_Intersects`, `ST_Overlaps`, and `ST_Contains`, respectively.
+
+3. **Union & Intersection**
+    - `unionByOwner(int ownerId)` merges all parcels for a given owner into a single geometry (`ST_Union`).
+    - `intersection(int objectIdA, int objectIdB)` returns the intersecting geometry of those two parcels (`ST_Intersection`).
+
+4. **Distance & Proximity**
+    - `distance(int objectIdA, int objectIdB)` calls `ST_Distance` to measure planar distance.
+    - `withinDistance(int objectIdA, int objectIdB, double dist)` checks whether two parcels lie within a specified threshold (`ST_DWithin`).
+
+5. **Area & Centroid**
+    - `area(int objectId)` → `ST_Area`
+    - `centroid(int objectId)` → `ST_Centroid`, returning WKT `"POINT(x y)"`.
+
+### Usage & Testing
+
+- The `main(...)` method in **`PostGISReader`** offers an interactive console demo for:
+    - Loading CSV data once to populate your PostGIS table.
+    - Querying neighbors, checking overlaps, distances, areas, centroids, etc.
+    - Demonstrates end-to-end DB integration with minimal code changes.
+
+- **`PostGISReaderTest`** ensures correctness for all these operations using a small test dataset:
+    - Parcels #101, #102 (adjacent), #103 (far away).
+    - Verifies `ST_Touches`, `ST_Intersects`, `ST_Overlaps`, `ST_Contains`, `ST_Distance`, etc.
 
 ---
 
@@ -117,5 +162,5 @@ Identify potential property exchanges between owners to maximize the average pro
 
 ## Authors
 
-Created and maintained by the **ES-Project-TerritoryManagement Group I**.  
+Created and maintained by **ES-Project-TerritoryManagement Group I**.  
 Contributions are welcome via pull requests and issues.

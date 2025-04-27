@@ -101,42 +101,12 @@ All dependencies are managed via **Maven**. You’ll find them in the [pom.xml](
   Some integration tests (involving both geometry checks and adjacency) remain to be expanded.  
   Additional unit tests for edge cases are on the roadmap.
 
----
-
-## PostGIS Reader – Latest Pull Request Highlights
-
-### Spatial Relationship Queries
-
-Thanks to the recent **Pull Request** (“Complete `PostGISReader` Spatial Functions”):
-
-1. **Bulk Insert**
-    - `insertPropertyRecords(...)` uses `ST_GeomFromText(?::text,4326)` to store geometry in a PostGIS table.
-
-2. **Spatial Predicates**
-    - `findTouching(...)`, `findIntersecting(...)`, `findOverlapping(...)`, and `findContained(...)` map to `ST_Touches`, `ST_Intersects`, `ST_Overlaps`, and `ST_Contains`, respectively.
-
-3. **Union & Intersection**
-    - `unionByOwner(int ownerId)` merges all parcels for a given owner into a single geometry (`ST_Union`).
-    - `intersection(int objectIdA, int objectIdB)` returns the intersecting geometry of those two parcels (`ST_Intersection`).
-
-4. **Distance & Proximity**
-    - `distance(int objectIdA, int objectIdB)` calls `ST_Distance` to measure planar distance.
-    - `withinDistance(int objectIdA, int objectIdB, double dist)` checks whether two parcels lie within a specified threshold (`ST_DWithin`).
-
-5. **Area & Centroid**
-    - `area(int objectId)` → `ST_Area`
-    - `centroid(int objectId)` → `ST_Centroid`, returning WKT `"POINT(x y)"`.
-
 ### Usage & Testing
 
 - The `main(...)` method in **`PostGISReader`** offers an interactive console demo for:
     - Loading CSV data once to populate your PostGIS table.
     - Querying neighbors, checking overlaps, distances, areas, centroids, etc.
     - Demonstrates end-to-end DB integration with minimal code changes.
-
-- **`PostGISReaderTest`** ensures correctness for all these operations using a small test dataset:
-    - Parcels #101, #102 (adjacent), #103 (far away).
-    - Verifies `ST_Touches`, `ST_Intersects`, `ST_Overlaps`, `ST_Contains`, `ST_Distance`, etc.
 
 ---
 

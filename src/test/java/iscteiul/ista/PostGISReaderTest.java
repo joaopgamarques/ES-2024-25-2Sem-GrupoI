@@ -303,4 +303,60 @@ public class PostGISReaderTest {
         assertFalse(farOff, "Squares ~12.7 m apart are not within 5 m");
     }
 
+    /**
+     * <p><strong>ST_Area test.</strong> Each of our sample parcels is a
+     * 1&nbsp;×&nbsp;1 unit square, therefore its planar area must be exactly
+     * {@code 1.0} (in the layer’s units).</p>
+     *
+     * <p>The assertion uses a tolerance of <code>1 × 10<sup>-6</sup></code>
+     * to cope with floating-point rounding inside PostGIS.</p>
+     */
+    @Test @Order(9)
+    @DisplayName("ST_Area → all three sample squares equal 1.0")
+    void areaWorks() {
+        for (int id : List.of(101, 102, 103)) {
+            Double a = PostGISReader.area(id);
+            assertNotNull(a, "Area should not be null for object " + id);
+            assertEquals(1.0, a, 1e-6,
+                    "Object " + id + " is a 1×1 square, expected area 1.0");
+        }
+    }
+
+    /**
+     * <p><strong>ST_Centroid test.</strong> The centroids for #101 and #103
+     * are analytically:</p>
+     *
+     * <ul>
+     *   <li>#101 – square (0,0)–(1,1) ⇒ centroid (0.5,&nbsp;0.5)</li>
+     *   <li>#103 – square (10,10)–(11,11) ⇒ centroid (10.5,&nbsp;10.5)</li>
+     * </ul>
+     *
+     * <p>The WKT returned by PostgreSQL is parsed to extract the numeric
+     * coordinates, which are then compared to the expected values to within
+     * 1 × 10<sup>-6</sup>.</p>
+     */
+    @Test @Order(10)
+    @DisplayName("ST_Centroid → POINT(0.5 0.5) for #101, POINT(10.5 10.5) for #103")
+    void centroidWorks() {
+        assertCentroidEquals(101, 0.5,  0.5);
+        assertCentroidEquals(103,10.5, 10.5);
+    }
+
+    private static void assertCentroidEquals(int objectId,
+                                             double expX, double expY) {
+        String wkt = PostGISReader.centroid(objectId);
+        assertNotNull(wkt, "Centroid WKT must not be null (object " + objectId + ')');
+        assertTrue(wkt.startsWith("POINT(") && wkt.endsWith(")"),
+                "Unexpected WKT format: " + wkt);
+
+        String[] xy = wkt.substring(6, wkt.length() - 1)  // strip "POINT(" and ")"
+                .trim().split("\\s+");
+        assertEquals(2, xy.length, "Could not parse coordinates from: " + wkt);
+
+        double x = Double.parseDouble(xy[0]);
+        double y = Double.parseDouble(xy[1]);
+
+        assertEquals(expX, x, 1e-6, "X-coordinate mismatch for object " + objectId);
+        assertEquals(expY, y, 1e-6, "Y-coordinate mismatch for object " + objectId);
+    }
 }

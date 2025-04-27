@@ -268,11 +268,58 @@ public final class PostGISReader {
         }
     }
 
+    /**
+     * Calculates the planar area of a parcel, using
+     * {@code ST_Area(geometry)} in the database.
+     *
+     * @param objectId the parcel’s {@code objectid}
+     * @return         the area in square units of the layer’s SRID,
+     *                 or {@code null} if the row is missing / DB error
+     */
+    public static Double area(int objectId) {
+        final String sql =
+                "SELECT ST_Area(geometry) AS a " +
+                        "  FROM " + TABLE_NAME +
+                        " WHERE objectid = ?";
 
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = c.prepareStatement(sql)) {
 
+            ps.setInt(1, objectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getDouble("a") : null;
+            }
+        } catch (SQLException e) {
+            LOGGER.error("ST_Area failed (objectID={})", objectId, e);
+            return null;
+        }
+    }
 
+    /**
+     * Computes the centroid of a parcel geometry and returns
+     * the point as WKT text (e.g.&nbsp;{@code POINT(x y)}).
+     *
+     * @param objectId the parcel’s {@code objectid}
+     * @return         WKT of the centroid point, or {@code null} if not found / error
+     */
+    public static String centroid(int objectId) {
+        final String sql =
+                "SELECT ST_AsText(ST_Centroid(geometry)) AS c " +
+                        "  FROM " + TABLE_NAME +
+                        " WHERE objectid = ?";
 
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = c.prepareStatement(sql)) {
 
+            ps.setInt(1, objectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("c") : null;
+            }
+        } catch (SQLException e) {
+            LOGGER.error("ST_Centroid failed (objectID={})", objectId, e);
+            return null;
+        }
+    }
 
     /**
      * Finds all parcels in the database that <em>touch</em> (share a boundary
@@ -444,6 +491,14 @@ public final class PostGISReader {
                     double d = sc.nextDouble();
                     Boolean near = withinDistance(id, distId, d);
                     System.out.println("Within " + d + " m? " + near);
+                }
+
+                System.out.print("Show area & centroid for " + id + " (y/N)? ");
+                if (sc.next().equalsIgnoreCase("y")) {
+                    Double a = area(id);
+                    String c = centroid(id);
+                    System.out.println("Area      = " + a);
+                    System.out.println("Centroid  = " + c);
                 }
             }
         }

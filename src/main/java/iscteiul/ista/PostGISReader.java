@@ -201,6 +201,79 @@ public final class PostGISReader {
         }
     }
 
+
+
+
+
+    /**
+     * Returns the shortest planar distance between two parcel geometries
+     * (in the unit of the layer’s SRID – for EPSG : 4326 that is metres
+     * when your data are in a projected CRS, otherwise degrees).
+     *
+     * @param objectIdA first parcel’s {@code objectid}
+     * @param objectIdB second parcel’s {@code objectid}
+     * @return distance as {@code double}, or {@code null} if one id is missing
+     *         or a DB error occurs
+     */
+    public static Double distance(int objectIdA, int objectIdB) {
+        final String sql =
+                "SELECT ST_Distance(a.geometry, b.geometry) AS dist " +
+                        "  FROM " + TABLE_NAME + " a, " + TABLE_NAME + " b " +
+                        " WHERE a.objectid = ? AND b.objectid = ?";
+
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, objectIdA);
+            ps.setInt(2, objectIdB);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getDouble("dist") : null;
+            }
+        } catch (SQLException e) {
+            LOGGER.error("ST_Distance failed ({} ↔ {})", objectIdA, objectIdB, e);
+            return null;
+        }
+    }
+
+    /**
+     * Convenience wrapper around {@code ST_DWithin}.  It answers the question
+     * “are the two parcels closer than the given distance?”.
+     *
+     * @param objectIdA  first parcel
+     * @param objectIdB  second parcel
+     * @param distance   threshold distance in the unit of the SRID
+     * @return           {@code true} / {@code false}, or {@code null} on error
+     */
+    public static Boolean withinDistance(int objectIdA, int objectIdB, double distance) {
+        final String sql =
+                "SELECT ST_DWithin(a.geometry, b.geometry, ?) AS ok " +
+                        "  FROM " + TABLE_NAME + " a, " + TABLE_NAME + " b " +
+                        " WHERE a.objectid = ? AND b.objectid = ?";
+
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setDouble(1, distance);
+            ps.setInt(2, objectIdA);
+            ps.setInt(3, objectIdB);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getBoolean("ok") : null;
+            }
+        } catch (SQLException e) {
+            LOGGER.error("ST_DWithin failed ({} ↔ {}, d={})",
+                    objectIdA, objectIdB, distance, e);
+            return null;
+        }
+    }
+
+
+
+
+
+
+
     /**
      * Finds all parcels in the database that <em>touch</em> (share a boundary
      * but do not overlap) the parcel whose {@code objectID} is given.
@@ -359,6 +432,18 @@ public final class PostGISReader {
                     String merged = unionByOwner(owner);
                     System.out.println("Union for owner " + owner + ": " +
                             (merged == null ? "(no rows / error)" : merged));
+                }
+
+                System.out.print("Second objectID to measure distance to " + id + " (0=skip): ");
+                int distId = sc.nextInt();
+                if (distId != 0) {
+                    Double dist = distance(id, distId);
+                    System.out.println("Distance = " + dist);
+
+                    System.out.print("Threshold d for ST_DWithin (metres): ");
+                    double d = sc.nextDouble();
+                    Boolean near = withinDistance(id, distId, d);
+                    System.out.println("Within " + d + " m? " + near);
                 }
             }
         }

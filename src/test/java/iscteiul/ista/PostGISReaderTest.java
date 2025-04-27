@@ -255,4 +255,52 @@ public class PostGISReaderTest {
             stmt.executeUpdate(sql);
         }
     }
+
+    /**
+     * Verifies {@link PostGISReader#distance(int, int)}:
+     * <ul>
+     *   <li>Adjacent squares (#101 and #102) share a common edge, so the
+     *       shortest distance between them must be exactly {@code 0.0}.</li>
+     *   <li>Squares #101 and #103 are centred 10 units apart on both the
+     *       X- and Y-axes, so the Euclidean separation is
+     *       {@code √((10-1)² + (10-1)²) ≈ 12.73}.  The assertion simply
+     *       checks the value falls in the 12–13 m band.</li>
+     * </ul>
+     */
+    @Test @Order(7)
+    @DisplayName("ST_Distance → 101↔102 = 0, 101↔103 ≈ 12.7")
+    void distanceWorks() {
+        Double dTouch = PostGISReader.distance(101, 102);
+        assertNotNull(dTouch);
+        assertEquals(0.0, dTouch, 1e-6,
+                "Touching squares should have zero distance");
+
+        Double dFar = PostGISReader.distance(101, 103);
+        assertNotNull(dFar);
+        assertTrue(dFar > 12.0 && dFar < 13.0,
+                "Expected √162 ≈ 12.73; got " + dFar);
+    }
+
+    /**
+     * Verifies {@link PostGISReader#withinDistance(int, int, double)}:
+     * <ul>
+     *   <li>#101 and #102 are contiguous, so they must be reported as
+     *       “within 0.1 m”.</li>
+     *   <li>#101 and #103 are ~12.7 m apart, well beyond 5 m; the call
+     *       should therefore return {@code false}.</li>
+     * </ul>
+     */
+    @Test @Order(8)
+    @DisplayName("ST_DWithin → true for 101↔102 within 0.1, false for 101↔103 within 5")
+    void dWithinWorks() {
+        Boolean near   = PostGISReader.withinDistance(101, 102, 0.1);
+        Boolean farOff = PostGISReader.withinDistance(101, 103, 5.0);
+
+        assertNotNull(near);
+        assertTrue(near,  "Touching parcels must be within 0.1 m");
+
+        assertNotNull(farOff);
+        assertFalse(farOff, "Squares ~12.7 m apart are not within 5 m");
+    }
+
 }

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * <h2>PostGISReader &ndash; Bulk Loader and Neighbor Finder</h2>
+ * <h2>PostGISUtils &ndash; Bulk Loader and Neighbor Finder</h2>
  *
  * <p>This <strong>static-only</strong> helper class provides functionality to:</p>
  * <ol>
@@ -54,7 +54,7 @@ import java.util.Scanner;
  *
  * <p><strong>Author:</strong> Your Name (2025)</p>
  */
-public final class PostGISReader {
+public final class PostGISUtils {
 
     /** The schema containing the "properties" table. Adjust as needed. */
     private static final String TABLE_SCHEMA = "public";
@@ -77,14 +77,20 @@ public final class PostGISReader {
     private static final String DB_PASS = "ES2425GI";
 
     /** SLF4J Logger for this class. */
-    private static final Logger LOGGER = LoggerFactory.getLogger(PostGISReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostGISUtils.class);
+
+    /**
+     * A constant referencing the property in your DB that represents
+     * "Funchal (Sé)". Adjust as needed if you have a different objectID.
+     */
+    private static final int FUNCHAL_SE_OBJECT_ID = 11074;
 
     /**
      * Private constructor prevents instantiation. This is a static utility class.
      *
      * @throws AssertionError always (if called by reflection or otherwise)
      */
-    private PostGISReader() {
+    private PostGISUtils() {
         throw new AssertionError("Utility class - do not instantiate.");
     }
 
@@ -262,6 +268,22 @@ public final class PostGISReader {
                     objectIdA, objectIdB, distance, e);
             return null;
         }
+    }
+
+    /**
+     * Computes the shortest planar distance between the given property (by {@code objectId})
+     * and the "Funchal (Sé)" property in the database with {@link #FUNCHAL_SE_OBJECT_ID}.
+     * <p>
+     * Internally calls {@link #distance(int, int)}, which returns {@code null} if
+     * either parcel doesn’t exist or on DB error. If your data is in EPSG:4326, this
+     * distance is in degrees. For meters, your geometry must be in a projected CRS.
+     *
+     * @param objectId the ID of the parcel whose distance to Funchal we want
+     * @return the distance (in the layer’s SRID units) from {@code objectId} to #11074,
+     *         or {@code null} if the row is missing or an error occurs
+     */
+    public static Double distanceToFunchal(int objectId) {
+        return distance(objectId, FUNCHAL_SE_OBJECT_ID);
     }
 
     /**

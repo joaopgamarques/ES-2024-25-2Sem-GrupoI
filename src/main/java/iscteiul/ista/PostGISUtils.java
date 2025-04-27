@@ -39,7 +39,7 @@ import java.util.Scanner;
  *           parcelnumber  BIGINT,
  *           shapelength   DOUBLE PRECISION,
  *           shapearea     DOUBLE PRECISION,
- *           geometry      geometry(MultiPolygon,4326),
+ *           geometry      geometry(MultiPolygon,3763),
  *           owner         INT,
  *           parish        TEXT,
  *           municipality  TEXT,
@@ -96,7 +96,7 @@ public final class PostGISUtils {
 
     /**
      * Inserts each {@link PropertyRecord} into the PostGIS table {@value #TABLE_NAME}.
-     * The geometry column is populated by invoking {@code ST_GeomFromText(?::text, 4326)}.
+     * The geometry column is populated by invoking {@code ST_GeomFromText(?::text, 3763)}.
      *
      * <p>Records that lack a non-empty {@link PropertyRecord#getGeometry() geometry} field
      * are skipped with a warning. Adjust logic if you need to handle those cases differently.</p>
@@ -111,7 +111,7 @@ public final class PostGISUtils {
                         "    geometry, owner, parish, municipality, island" +
                         ") VALUES (" +
                         "    ?, ?, ?, ?, ?," +
-                        "    ST_GeomFromText(?::text,4326), ?, ?, ?, ?" +
+                        "    ST_GeomFromText(?::text,3763), ?, ?, ?, ?" +
                         ")";
 
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
@@ -133,7 +133,7 @@ public final class PostGISUtils {
                 ps.setLong(3,   record.getParcelNumber());
                 ps.setDouble(4, record.getShapeLength());
                 ps.setDouble(5, record.getShapeArea());
-                ps.setString(6, wkt); // geometry => ST_GeomFromText(?::text,4326)
+                ps.setString(6, wkt); // geometry => ST_GeomFromText(?::text,3763)
                 ps.setInt(7,    record.getOwner());
                 ps.setString(8, record.getParish());
                 ps.setString(9, record.getMunicipality());
@@ -209,7 +209,7 @@ public final class PostGISUtils {
 
     /**
      * Returns the shortest planar distance between two parcel geometries
-     * (in the unit of the layer’s SRID – for EPSG : 4326 that is metres
+     * (in the unit of the layer’s SRID – for EPSG : 3763 that is metres
      * when your data are in a projected CRS, otherwise degrees).
      *
      * @param objectIdA first parcel’s {@code objectid}
@@ -275,7 +275,7 @@ public final class PostGISUtils {
      * and the "Funchal (Sé)" property in the database with {@link #FUNCHAL_SE_OBJECT_ID}.
      * <p>
      * Internally calls {@link #distance(int, int)}, which returns {@code null} if
-     * either parcel doesn’t exist or on DB error. If your data is in EPSG:4326, this
+     * either parcel doesn’t exist or on DB error. If your data is in EPSG:3763, this
      * distance is in degrees. For meters, your geometry must be in a projected CRS.
      *
      * @param objectId the ID of the parcel whose distance to Funchal we want
@@ -470,6 +470,7 @@ public final class PostGISUtils {
 
         // 2) Optionally, uncomment once to populate the table
         // insertPropertyRecords(rows);
+        System.out.println("Distance to Funchal (Sé): " + distanceToFunchal(5000));
 
         // 3) Interactive neighbor queries
         try (Scanner sc = new Scanner(System.in)) {

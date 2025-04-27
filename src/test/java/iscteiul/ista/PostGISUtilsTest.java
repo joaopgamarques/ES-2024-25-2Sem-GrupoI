@@ -379,7 +379,7 @@ public class PostGISUtilsTest {
      * "Funchal (Sé)" property (#11074) exist with valid geometries.</p>
      *
      * <p><strong>Expected:</strong> {@code distanceToFunchal(101)} returns a non-null
-     * number (in degrees if EPSG:4326, or meters if projected). Ensures successful lookup
+     * number (in degrees if EPSG:3763, or meters if projected). Ensures successful lookup
      * of both properties and a positive distance. We optionally remove #11074 afterward
      * to keep the DB in a known state for subsequent tests.</p>
      */
@@ -469,7 +469,7 @@ public class PostGISUtilsTest {
                         // Insert a new row
                         String insertSql =
                                 "INSERT INTO public.properties(objectid, geometry) "
-                                        + "VALUES (?, ST_GeomFromText(?::text,4326))";
+                                        + "VALUES (?, ST_GeomFromText(?::text,3763))";
                         try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
                             ins.setInt(1, objectId);
                             ins.setString(2, wktPolygon);
@@ -479,7 +479,7 @@ public class PostGISUtilsTest {
                         // Update existing geometry
                         String updateSql =
                                 "UPDATE public.properties "
-                                        + "SET geometry=ST_GeomFromText(?::text,4326) "
+                                        + "SET geometry=ST_GeomFromText(?::text,3763) "
                                         + "WHERE objectid=?";
                         try (PreparedStatement upd = conn.prepareStatement(updateSql)) {
                             upd.setString(1, wktPolygon);

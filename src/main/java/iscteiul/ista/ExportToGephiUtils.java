@@ -35,9 +35,9 @@ import java.util.stream.Collectors;
  *   <li>Any adjacency logic in {@code PropertyUtils} (like geometry-based adjacency checks).</li>
  * </ul>
  */
-public final class ExportToGephiDemo {
+public final class ExportToGephiUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(ExportToGephiDemo.class);
+    private static final Logger logger = LoggerFactory.getLogger(ExportToGephiUtils.class);
 
     /**
      * Private constructor to prevent instantiation.
@@ -48,7 +48,7 @@ public final class ExportToGephiDemo {
      *
      * @throws AssertionError always, since this constructor should never be called
      */
-    private ExportToGephiDemo() {
+    private ExportToGephiUtils() {
         throw new AssertionError("Utility class should not be instantiated");
     }
 

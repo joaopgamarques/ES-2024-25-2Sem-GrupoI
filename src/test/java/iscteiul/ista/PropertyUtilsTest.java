@@ -429,4 +429,143 @@ public class PropertyUtilsTest {
                 "Error: The average area of disconnected groups is incorrect.");
     }
 
+    /**
+     * Tests a valid scenario where both the target property (rec1) and the Funchal (Sé)
+     * record (with objectID=11074) exist in the provided list. Verifies that the
+     * computed distance matches the expected centroid distance.
+     */
+    @Test
+    @Order(22)
+    void testDistanceToFunchal_validCase() {
+        // Create a local copy of the sampleRecords so we don't permanently affect them
+        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
+
+        // Add a property record to represent #11074 (Funchal Sé).
+        // We'll place it somewhere near rec1 & rec2 or far, up to you.
+        // For simplicity, let's put it at (2,2) -> (3,3).
+        PropertyRecord funchalSe = new PropertyRecord(
+                11074,
+                999999L,
+                888888L,
+                0.0,
+                0.0,
+                "POLYGON((2 2, 3 2, 3 3, 2 3, 2 2))", // geometry near rec3
+                1234,            // owner (arbitrary)
+                "Funchal (Sé)",  // parish
+                "Funchal",       // municipality
+                "Ilha da Madeira (Madeira)"
+        );
+        localRecords.add(funchalSe);
+
+        // Now call distanceToFunchal on rec1, which is at (0..1,0..1).
+        // We'll compare the centroids:
+        // - rec1 centroid ~ (0.5, 0.5)
+        // - funchalSe centroid ~ (2.5, 2.5)
+        // Distance ~ sqrt((2.5-0.5)^2 + (2.5-0.5)^2) = sqrt(8) ~ 2.8284
+        double dist = PropertyUtils.distanceToFunchal(1, localRecords);
+
+        assertFalse(Double.isNaN(dist),
+                "Distance should be valid (not NaN) if both properties exist with valid geometry.");
+        // Check approximate distance with a small tolerance
+        assertEquals(2.8284, dist, 0.001,
+                "Centroid distance between rec1 and #11074 should be around sqrt(8) ≈ 2.8284.");
+    }
+
+    /**
+     * Tests the scenario where #11074 is not present in the list at all.
+     * Expects the returned distance to be Double.NaN.
+     */
+    @Test
+    @Order(23)
+    void testDistanceToFunchal_missingFunchalRecord() {
+        // Use sampleRecords as-is (it does NOT have #11074).
+        // We expect distanceToFunchal(...) to return NaN.
+        double dist = PropertyUtils.distanceToFunchal(1, sampleRecords);
+
+        assertTrue(Double.isNaN(dist),
+                "distanceToFunchal should return NaN if #11074 is not in the list.");
+    }
+
+    /**
+     * Tests the scenario where the source property ID does not exist in the list,
+     * but #11074 is present. Expects Double.NaN since the 'source' record is missing.
+     */
+    @Test
+    @Order(24)
+    void testDistanceToFunchal_missingSourceProperty() {
+        // Create a list that has #11074 but NOT propertyId=9999 (we'll pass 9999).
+        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
+
+        // Insert the #11074 record with some geometry
+        PropertyRecord funchalSe = new PropertyRecord(
+                11074,
+                999999L,
+                888888L,
+                0.0,
+                0.0,
+                "POLYGON((0 0,1 0,1 1,0 1,0 0))", // arbitrary shape
+                1234,
+                "Funchal (Sé)",
+                "Funchal",
+                "Ilha da Madeira (Madeira)"
+        );
+        localRecords.add(funchalSe);
+
+        // Now call distanceToFunchal with propertyId=9999, which doesn't exist
+        double dist = PropertyUtils.distanceToFunchal(9999, localRecords);
+        assertTrue(Double.isNaN(dist),
+                "Should return NaN because the requested propertyId=9999 doesn't exist.");
+    }
+
+    /**
+     * Tests the scenario where one or both of the geometries (source or #11074) are
+     * invalid or blank. Expects Double.NaN in both cases, since distance cannot
+     * be computed.
+     */
+    @Test
+    @Order(25)
+    void testDistanceToFunchal_invalidOrBlankGeometry() {
+        // Create a local copy & add a #11074 record with BLANK geometry
+        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
+
+        // Add #11074 with blank geometry => distance should be NaN
+        PropertyRecord funchalSeBlankGeom = new PropertyRecord(
+                11074,
+                999999L,
+                888888L,
+                0.0,
+                0.0,
+                "",  // blank geometry
+                1234,
+                "Funchal (Sé)",
+                "Funchal",
+                "Ilha da Madeira (Madeira)"
+        );
+        localRecords.add(funchalSeBlankGeom);
+
+        // rec1 is valid, #11074 has blank geometry => distance = NaN
+        double dist = PropertyUtils.distanceToFunchal(1, localRecords);
+        assertTrue(Double.isNaN(dist),
+                "If #11074 has blank geometry, the computed distance should be NaN.");
+
+        // Alternatively, remove the blank one and add an invalid WKT string
+        localRecords.remove(funchalSeBlankGeom);
+        PropertyRecord funchalSeBadGeom = new PropertyRecord(
+                11074,
+                999999L,
+                888888L,
+                0.0,
+                0.0,
+                "NOT_A_VALID_WKT", // invalid geometry
+                1234,
+                "Funchal (Sé)",
+                "Funchal",
+                "Ilha da Madeira (Madeira)"
+        );
+        localRecords.add(funchalSeBadGeom);
+
+        dist = PropertyUtils.distanceToFunchal(1, localRecords);
+        assertTrue(Double.isNaN(dist),
+                "With invalid geometry for #11074, distance should also be NaN.");
+    }
 }

@@ -171,7 +171,11 @@ public final class App {
             System.out.println("Owner " + someOwner + " is adjacent to owners: " + ownerNeighbors);
         }
 
-        // 12. Visualize the STRtree-based property graph in GraphStream.
+        // 12. Calculate the distance to Funchal Sé (using the first property).
+        double distanceToFunchal = PropertyUtils.distanceToFunchal(1234, propertyRecords);
+        System.out.println("Distance to Funchal Sé in kilometers: " + String.format("%.1f", distanceToFunchal/1000));
+
+        // 13. Visualize the STRtree-based property graph in GraphStream.
         GraphVisualization.visualizeGraph(propertyGraphJgt);
     }
 }

@@ -9,9 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Test class for {@link ExportToGephiDemo}, focusing on the buildGraph method.
+ * Test class for {@link ExportToGephiUtils}, focusing on the buildGraph method.
  */
-public class ExportToGephiDemoTest {
+public class ExportToGephiUtilsTest {
 
     /**
      * Verifies that buildGraph creates nodes and edges for the given PropertyRecord list.
@@ -60,8 +60,8 @@ public class ExportToGephiDemoTest {
                 "IslandY"
         ));
 
-        // Build the graph via ExportToGephiDemo
-        Graph graph = ExportToGephiDemo.buildGraph(records);
+        // Build the graph via ExportToGephiUtils
+        Graph graph = ExportToGephiUtils.buildGraph(records);
 
         // 1) Verify node count
         assertEquals(3, graph.getNodeCount(),
@@ -116,7 +116,7 @@ public class ExportToGephiDemoTest {
     void testBuildGraphWithEmptyList() {
         // If no records are provided, the graph should have 0 nodes, 0 edges
         List<PropertyRecord> empty = new ArrayList<>();
-        Graph graph = ExportToGephiDemo.buildGraph(empty);
+        Graph graph = ExportToGephiUtils.buildGraph(empty);
 
         assertEquals(0, graph.getNodeCount(),
                 "No nodes should be in the graph for an empty list.");

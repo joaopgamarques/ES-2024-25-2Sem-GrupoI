@@ -44,7 +44,7 @@ This project focuses on analyzing and improving **territorial management** by lo
     - Builds an **interactive GraphStream** visualization from a `PropertyGraph`.
     - Displays parcels (nodes) and their adjacency (edges), applying simple color rules for connected vs. isolated parcels.
 
-8. **`ExportToGephiDemo`**
+8. **`ExportToGephiUtils`**
     - Demonstrates creating a **GraphStream** graph from a filtered property list (e.g., by parish).
     - Exports the graph to `.gexf` for use in **Gephi**, enabling advanced layout and analytics.
 
@@ -52,7 +52,7 @@ This project focuses on analyzing and improving **territorial management** by lo
     - A simpler adjacency-list approach, linking `PropertyRecord` nodes if they share a boundary.
     - Currently uses an O(N²) check; future improvements may include spatial indexing.
 
-10. **`PostGISReader`**
+10. **`PostGISUtils`**
 - Provides **PostGIS** functionality to insert, query, and manipulate parcel geometry in a PostgreSQL/PostGIS database:
     - **Bulk Insert** (`insertPropertyRecords`) for reading CSV-derived records into the DB.
     - **Spatial Relationship Queries** (`findTouching`, `findIntersecting`, `findOverlapping`, `findContained`).

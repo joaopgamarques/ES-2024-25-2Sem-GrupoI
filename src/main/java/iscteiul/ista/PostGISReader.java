@@ -56,10 +56,6 @@ import java.util.Scanner;
  */
 public final class PostGISReader {
 
-    /*
-     * ──────────────────────────── CONFIGURATION ─────────────────────────────
-     */
-
     /** The schema containing the "properties" table. Adjust as needed. */
     private static final String TABLE_SCHEMA = "public";
 
@@ -91,10 +87,6 @@ public final class PostGISReader {
     private PostGISReader() {
         throw new AssertionError("Utility class - do not instantiate.");
     }
-
-    /*
-     * ─────────────────────────── BULK INSERT ────────────────────────────
-     */
 
     /**
      * Inserts each {@link PropertyRecord} into the PostGIS table {@value #TABLE_NAME}.
@@ -154,9 +146,60 @@ public final class PostGISReader {
         }
     }
 
-    /*
-     * ──────────────────── NEIGHBOR QUERY WRAPPERS ─────────────────────
+    /**
+     * Merges (UNION) every parcel that belongs to a given owner into a single
+     * MultiPolygon and returns it as WKT text.
+     *
+     * @param ownerId  the owner column value
+     * @return         WKT of the merged geometry, or {@code null} if the owner
+     *                 has no rows (or on error)
      */
+    public static String unionByOwner(int ownerId) {
+        final String sql =
+                "SELECT ST_AsText(ST_Union(geometry)) AS merged " +
+                        "  FROM " + TABLE_NAME +
+                        " WHERE owner = ?";
+
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, ownerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return (rs.next() ? rs.getString("merged") : null);
+            }
+        } catch (SQLException e) {
+            LOGGER.error("ST_Union failed for owner={}", ownerId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Returns the geometric intersection of two parcels as WKT.
+     *
+     * @param objectIdA  first parcel’s objectID
+     * @param objectIdB  second parcel’s objectID
+     * @return           WKT of the intersection polygon, or {@code null} if the
+     *                   geometries do not intersect (or on error)
+     */
+    public static String intersection(int objectIdA, int objectIdB) {
+        final String sql =
+                "SELECT ST_AsText(ST_Intersection(a.geometry, b.geometry)) AS inter " +
+                        "  FROM " + TABLE_NAME + " a, " + TABLE_NAME + " b " +
+                        " WHERE a.objectid = ? AND b.objectid = ?";
+
+        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, objectIdA);
+            ps.setInt(2, objectIdB);
+            try (ResultSet rs = ps.executeQuery()) {
+                return (rs.next() ? rs.getString("inter") : null);
+            }
+        } catch (SQLException e) {
+            LOGGER.error("ST_Intersection failed ({} vs {})", objectIdA, objectIdB, e);
+            return null;
+        }
+    }
 
     /**
      * Finds all parcels in the database that <em>touch</em> (share a boundary
@@ -203,10 +246,6 @@ public final class PostGISReader {
     public static List<PropertyRecord> findContained(int objectId) {
         return queryNeighbours(objectId, "ST_Contains");
     }
-
-    /*
-     * ───────────────────── INTERNAL QUERY LOGIC ───────────────────────
-     */
 
     /**
      * A generic method to find the "neighboring" parcels (rows) in the database
@@ -302,15 +341,27 @@ public final class PostGISReader {
                 if (id == 0) {
                     break;
                 }
-
                 printResults("TOUCHING",      findTouching(id));
                 printResults("INTERSECTING",  findIntersecting(id));
                 printResults("OVERLAPPING",   findOverlapping(id));
                 printResults("CONTAINED",     findContained(id));
+
+                System.out.print("Another objectID to intersect with " + id + " (0=skip): ");
+                int other = sc.nextInt();
+                if (other != 0) {
+                    String inter = intersection(id, other);
+                    System.out.println("Intersection WKT: " + (inter == null ? "(none)" : inter));
+                }
+
+                System.out.print("Owner id to UNION (0=skip): ");
+                int owner = sc.nextInt();
+                if (owner != 0) {
+                    String merged = unionByOwner(owner);
+                    System.out.println("Union for owner " + owner + ": " +
+                            (merged == null ? "(no rows / error)" : merged));
+                }
             }
         }
-
-        System.out.println("Done — goodbye!");
     }
 
     /**

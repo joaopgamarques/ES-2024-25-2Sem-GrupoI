@@ -198,6 +198,39 @@ public class PostGISReaderTest {
     }
 
     /**
+     * Verifies that the shared border between #101 and #102 is reported
+     * as a non-empty line-string and that disjoint polygons yield an
+     * empty geometry.
+     */
+    @Test @Order(5)
+    void intersectionWorks() {
+        String touchLine = PostGISReader.intersection(101, 102);
+        assertNotNull(touchLine, "Intersection of touching squares must not be null");
+        assertTrue(touchLine.contains("LINESTRING") || touchLine.contains("MULTILINESTRING"),
+                "Expected a line-string, got: " + touchLine);
+
+        String empty = PostGISReader.intersection(101, 103);
+        assertNotNull(empty, "PostGIS returns 'GEOMETRYCOLLECTION EMPTY', not null");
+        assertTrue(empty.contains("EMPTY"),
+                "Non-intersecting squares should result in an empty geometry");
+    }
+
+    /**
+     * Owner 1 owns exactly one parcel (#101), so the union must be a
+     * single polygon.  An inexistent owner should return {@code null}.
+     */
+    @Test @Order(6)
+    void unionByOwnerWorks() {
+        String merged = PostGISReader.unionByOwner(1);
+        assertNotNull(merged, "Union for an existing owner must not be null");
+        assertTrue(merged.startsWith("POLYGON") || merged.startsWith("MULTIPOLYGON"),
+                "Unexpected WKT for union: " + merged);
+
+        assertNull(PostGISReader.unionByOwner(9999),
+                "Union for a non-existing owner should be null");
+    }
+
+    /**
      * A convenience method that converts a list of {@link PropertyRecord}
      * into a set of their {@code objectID} values. Useful for concise
      * set comparisons in test assertions.

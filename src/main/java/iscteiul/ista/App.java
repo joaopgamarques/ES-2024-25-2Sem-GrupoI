@@ -75,6 +75,22 @@ public final class App {
             return;
         }
 
+        // 4a. For each property in parishSubset, print its neighbors
+        for (PropertyRecord record : parishSubset) {
+            int objID = record.getObjectID();
+            List<Graph.GraphNode> neighbors = propertyGraph.getNeighbors(objID);
+            if (neighbors.isEmpty()) {
+                System.out.println("Property objectID=" + objID + " has no neighbors (in this parish).");
+            } else {
+                System.out.println("Neighbors of property objectID=" + objID + ":");
+                for (Graph.GraphNode neighbor : neighbors) {
+                    System.out.println("  -> objectID=" + neighbor.getObjectID()
+                            + ", area=" + neighbor.getShapeArea()
+                            + ", owner=" + neighbor.getOwner());
+                }
+            }
+        }
+
         Random random = new Random();
         int randomIndex = random.nextInt(parishSubset.size());
         PropertyRecord randomProperty = parishSubset.get(randomIndex);

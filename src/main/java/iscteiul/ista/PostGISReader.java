@@ -201,10 +201,6 @@ public final class PostGISReader {
         }
     }
 
-
-
-
-
     /**
      * Returns the shortest planar distance between two parcel geometries
      * (in the unit of the layer’s SRID – for EPSG : 4326 that is metres

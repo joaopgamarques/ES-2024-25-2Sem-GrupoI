@@ -469,8 +469,7 @@ public final class PostGISUtils {
         LOGGER.info("CSV rows read: {}", rows.size());
 
         // 2) Optionally, uncomment once to populate the table
-        // insertPropertyRecords(rows);
-        System.out.println("Distance to Funchal (Sé): " + distanceToFunchal(5000));
+        // insertPropertyRecords(rows)
 
         // 3) Interactive neighbor queries
         try (Scanner sc = new Scanner(System.in)) {
@@ -503,10 +502,10 @@ public final class PostGISUtils {
                 System.out.print("Second objectID to measure distance to " + id + " (0=skip): ");
                 int distId = sc.nextInt();
                 if (distId != 0) {
-                    Double dist = distance(id, distId);
-                    System.out.println("Distance = " + dist);
+                    Double distance = distance(id, distId);
+                    System.out.println("Distance = " + distance + " meters.");
 
-                    System.out.print("Threshold d for ST_DWithin (metres): ");
+                    System.out.print("Threshold d for ST_DWithin (meters): ");
                     double d = sc.nextDouble();
                     Boolean near = withinDistance(id, distId, d);
                     System.out.println("Within " + d + " m? " + near);

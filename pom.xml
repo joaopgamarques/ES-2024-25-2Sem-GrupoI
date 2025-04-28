@@ -51,7 +51,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Project libraries (unchanged) -->
+    <!-- Project libraries -->
     <dependency>
       <groupId>com.opencsv</groupId>
       <artifactId>opencsv</artifactId>
@@ -89,7 +89,6 @@
       <version>2.0</version>
     </dependency>
     <!-- PostgreSQL JDBC Driver -->
-    <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
@@ -102,6 +101,26 @@
   <!-- ─────────── -->
   <build>
     <plugins>
+      <!-- Javadoc plugin wired to package phase and attaching javadoc.jar -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.11.2</version>
+        <configuration>
+          <failOnError>false</failOnError>
+          <additionalJOptions>-Xdoclint:none</additionalJOptions>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadoc</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- JaCoCo plugin -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -124,54 +143,44 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-pmd-plugin</artifactId>
         <version>3.26.0</version>
-
-        <!-- Configuration -->
         <configuration>
-          <!-- Fails the build when a rule is violated -->
           <failOnViolation>false</failOnViolation>
-          <!-- Show violations in the console -->
           <printFailingErrors>true</printFailingErrors>
-          <!-- Use PMD’s built-in quickstart ruleset.
-               Replace or extend with your own if needed. -->
           <rulesets>
             <ruleset>/rulesets/java/quickstart.xml</ruleset>
           </rulesets>
-          <!-- tell PMD/CPD where JXR puts the cross-reference -->
           <xrefLocation>${project.reporting.outputDirectory}/xref</xrefLocation>
         </configuration>
-
-        <!-- Automatically run during 'verify' -->
         <executions>
           <execution>
             <id>pmd-and-cpd</id>
             <phase>verify</phase>
             <goals>
-              <goal>check</goal>      <!-- PMD rules -->
-              <goal>cpd-check</goal>  <!-- copy/paste detection -->
+              <goal>check</goal>
+              <goal>cpd-check</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
 
-      <!-- Add this right next to the JaCoCo and PMD plugins -->
+      <!-- JXR plugin required by PMD for xref -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jxr-plugin</artifactId>
         <version>3.3.1</version>
-
-        <!-- Generate xref early enough that PMD can find it -->
         <executions>
           <execution>
             <id>generate-xref</id>
-            <phase>process-sources</phase>  <!-- or 'prepare-package', 'site', etc. -->
-            <goals><goal>jxr</goal></goals>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>jxr</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>
-
     </plugins>
 
-    <!-- Core plugin versions locked here (unchanged) -->
+    <!-- Core plugin versions locked here -->
     <pluginManagement>
       <plugins>
         <plugin>

@@ -44,7 +44,7 @@ public final class App {
     public static void main(String[] args) {
         // 1. Read CSV
         CSVFileReader csvFileReader = new CSVFileReader();
-        List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.1.csv");
+        List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.2.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
 
         // 1a. Print distinct parishes and municipalities.

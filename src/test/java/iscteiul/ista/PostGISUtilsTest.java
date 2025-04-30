@@ -139,7 +139,7 @@ public class PostGISUtilsTest {
         }
 
         // 2) Re-import data from CSV into the now-empty table
-        List<PropertyRecord> rows = new CSVFileReader().importData("/Madeira-Moodle-1.1.csv");
+        List<PropertyRecord> rows = new CSVFileReader().importData("/Madeira-Moodle-1.2.csv");
         LOG.info("CSV rows read: {}", rows.size());
 
         PostGISUtils.insertPropertyRecords(rows);
@@ -469,7 +469,7 @@ public class PostGISUtilsTest {
                         // Insert a new row
                         String insertSql =
                                 "INSERT INTO public.properties(objectid, geometry) "
-                                        + "VALUES (?, ST_GeomFromText(?::text,3763))";
+                                        + "VALUES (?, ST_GeomFromText(?::text,4326))";
                         try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
                             ins.setInt(1, objectId);
                             ins.setString(2, wktPolygon);
@@ -479,7 +479,7 @@ public class PostGISUtilsTest {
                         // Update existing geometry
                         String updateSql =
                                 "UPDATE public.properties "
-                                        + "SET geometry=ST_GeomFromText(?::text,3763) "
+                                        + "SET geometry=ST_GeomFromText(?::text,4326) "
                                         + "WHERE objectid=?";
                         try (PreparedStatement upd = conn.prepareStatement(updateSql)) {
                             upd.setString(1, wktPolygon);

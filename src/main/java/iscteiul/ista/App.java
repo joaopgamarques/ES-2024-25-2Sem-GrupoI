@@ -1,6 +1,7 @@
 package iscteiul.ista;
 
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.io.ParseException;
@@ -159,6 +160,20 @@ public final class App {
 
         // 8b. Demonstrate merging adjacent properties that belong to the same owner, within this parish subset.
         demonstrateMergingProperties(parishSubset);
+
+        // 8c) Merge same-owner adjacency
+        List<PropertyRecord> merged = PropertyMerger.mergeSameOwner(parishSubset);
+
+        // 8d) Build adjacency among these merged props
+        SimpleGraph<PropertyRecord, DefaultEdge> mergedGraph = MergedPropertyGraph.buildGraph(merged);
+
+        // 8e) Suggest swaps with areaThreshold=0.1 => up to 10 suggestions
+        List<SwapSuggestion> suggestions = PropertySwapAdvisor.suggestSwaps(mergedGraph, 0.1, 10);
+
+        // 8f) Print the suggestions
+        for (SwapSuggestion s : suggestions) {
+            System.out.println(s);
+        }
 
         // 9. Build the owner graph using the same parish subset.
         OwnerGraph ownerGraph = new OwnerGraph();

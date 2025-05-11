@@ -615,4 +615,65 @@ public class PropertyUtilsTest {
         assertSame(single, merged.get(0),
                 "Should return the exact same property instance.");
     }
+
+    @Test
+    @Order(33)
+    void testMergeSameOwnerOneInvalidFarAway() throws Exception {
+        // Property A: valid geometry at (0..1,0..1), owner=77
+        PropertyRecord validFarLeft = new PropertyRecord(
+                700,       // objectID
+                700L,      // parcelID
+                700L,      // parcelNumber
+                0.0,       // shapeLength placeholder
+                1.0,       // shapeArea placeholder
+                "POLYGON((0 0,1 0,1 1,0 1,0 0))",
+                77,        // same owner
+                "ParishZ", "MunicipalityZ", "IslandZ"
+        );
+
+        // Property B: invalid WKT, physically we'd consider it at (10..11,10..11),
+        // but the geometry won't parse => invalid. Same owner=77 => forced merge.
+        PropertyRecord invalidFarRight = new PropertyRecord(
+                701,
+                701L,
+                701L,
+                0.0,
+                9.0,         // bigger shapeArea to see who is "largest"
+                "NOT_VALID_WKT",
+                77,          // same owner => forced adjacency if invalid
+                "ParishZ", "MunicipalityZ", "IslandZ"
+        );
+
+        List<PropertyRecord> props = List.of(validFarLeft, invalidFarRight);
+
+        List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(props);
+        assertEquals(1, merged.size(),
+                "Despite being far apart (if both were valid), they must forcibly merge because one WKT is invalid and owners match.");
+
+        // In your method, you pick the property with the "largest shapeArea" as the final metadata.
+        // invalidFarRight has shapeArea=9.0 vs validFarLeft=1.0 => "largest" is invalidFarRight => objectID=701
+        PropertyRecord result = merged.get(0);
+        assertEquals(701, result.getObjectID(),
+                "Should adopt the largest property’s ID (invalidFarRight) after merge, since shapeArea=9.0 > 1.0.");
+
+        // The code attempts to union the geometry of each.
+        // For invalid geometry, parse fails => unionGeom remains from the valid geometry only.
+        // So the final shape should be the valid polygon’s area=1.0,
+        // but we keep the metadata from 'largest' property => objectID=701, shapeArea=???
+        // Let's confirm your method sets shapeArea to unioned geometry area.
+        // The union geometry is just the one valid polygon => area=1.0.
+
+        double finalArea = result.getShapeArea();
+        assertEquals(1.0, finalArea, 0.0001,
+                "Union must be just the valid polygon, so final area=1.0 even though largest had area=9.0 initially.");
+
+        // Confirm the geometry is that single polygon as a MULTIPOLYGON
+        org.locationtech.jts.geom.Geometry unionGeom =
+                new org.locationtech.jts.io.WKTReader().read(result.getGeometry());
+        assertTrue(unionGeom.getGeometryType().contains("MultiPolygon"),
+                "Should be a MultiPolygon in final WKT if it was originally one polygon or forced multi.");
+        assertEquals(1.0, unionGeom.getArea(), 0.0001,
+                "Again, area=1.0 from the single valid geometry, ignoring the invalid one.");
+    }
+
 }

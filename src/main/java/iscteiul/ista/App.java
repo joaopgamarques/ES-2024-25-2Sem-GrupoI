@@ -43,7 +43,7 @@ public final class App {
      * @param args command-line arguments (not used)
      */
     public static void main(String[] args) {
-        // 1. Read CSV
+        // 1. Read proprieties CSV
         CSVFileReader csvFileReader = new CSVFileReader();
         List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.2.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
@@ -53,6 +53,22 @@ public final class App {
         Set<String> distinctMunicipalities = PropertyUtils.getDistinctMunicipalities(propertyRecords);
         logger.info("Distinct Parishes: {}", distinctParishes);
         logger.info("Distinct Municipalities: {}", distinctMunicipalities);
+
+        // 1b. Read metrics CSV
+        List<ParishMetrics> metrics = CSVMetricsFileReader.importData();
+        logger.info("Total metrics loaded: {}", metrics.size());
+
+        // 1c. Print each parish metric (distance, price, etc.)
+        for (ParishMetrics pm : metrics) {
+            System.out.printf("%-30s Distance Airport [km]=%.1f | Distance Funchal Sé [km]=%.1f | Price [€/m²]=%.0f | " +
+                            "Population Density [Hab./km²]=%d | Infrastructure Quality Index=%d%n",
+                    pm.parishName(),
+                    pm.distanceAirportKm(),
+                    pm.distanceFunchalSeKm(),
+                    pm.averagePriceEuroM2(),
+                    pm.populationDensityHabKm2(),
+                    pm.infrastructureQualityIdx());
+        }
 
         // 2. Filter to a chosen parish.
         String chosenParish = "Machico";

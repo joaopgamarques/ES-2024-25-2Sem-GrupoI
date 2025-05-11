@@ -54,7 +54,7 @@ public final class App {
         logger.info("Distinct Municipalities: {}", distinctMunicipalities);
 
         // 2. Filter to a chosen parish.
-        String chosenParish = "Canhas";
+        String chosenParish = "Machico";
         List<PropertyRecord> parishSubset = propertyRecords.stream()
                 .filter(pr -> chosenParish.equals(pr.getParish()))
                 .collect(Collectors.toList());
@@ -157,6 +157,9 @@ public final class App {
             System.out.println("These averages differ: " + averageArea + " vs " + averageGroupedArea);
         }
 
+        // 8b. Demonstrate merging adjacent properties that belong to the same owner, within this parish subset.
+        demonstrateMergingProperties(parishSubset);
+
         // 9. Build the owner graph using the same parish subset.
         OwnerGraph ownerGraph = new OwnerGraph();
         ownerGraph.buildGraph(parishSubset);
@@ -177,5 +180,25 @@ public final class App {
 
         // 13. Visualize the STRtree-based property graph in GraphStream.
         GraphVisualization.visualizeGraph(propertyGraphJgt);
+    }
+
+    /**
+     * Demonstrates merging adjacent properties belonging to the same owner.
+     * <p>
+     * This example filters properties by a chosen parish, then merges them
+     * to produce a new list where each connected component is collapsed
+     * into a single {@link PropertyRecord}.
+     */
+    private static void demonstrateMergingProperties(List<PropertyRecord> parishSubset) {
+        System.out.println("\n--- Demonstrate Merging of Adjacent Properties ---");
+        List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(parishSubset);
+
+        System.out.println("Original subset size: " + parishSubset.size());
+        System.out.println("Merged subset size: " + merged.size());
+        for (PropertyRecord mp : merged) {
+            System.out.println("Merged property => ID=" + mp.getObjectID()
+                    + ", area=" + mp.getShapeArea()
+                    + ", geometry=" + mp.getGeometry().substring(0, Math.min(60, mp.getGeometry().length())) + "...");
+        }
     }
 }

@@ -25,6 +25,63 @@ public final class App {
     private static final Logger logger = LoggerFactory.getLogger(App.class);
 
     /**
+     * A private static list storing all {@link PropertyRecord} objects loaded
+     * from the CSV (e.g. "/Madeira-Moodle-1.2.csv"). This allows other methods
+     * within {@code App} to access the full dataset, while preventing external
+     * classes from directly modifying it.
+     *
+     * <p>We assign this list once in {@link #main(String[])} after reading the CSV,
+     * and it remains available for the lifetime of the application.</p>
+     */
+    private static List<PropertyRecord> propertyRecords = null;
+
+    /**
+     * Private static reference to the #11074 property, once loaded.
+     * We'll assign it in main() after reading from CSV. Other classes
+     * can read it via {@link #getFunchalPropertyRecord()} but cannot overwrite it.
+     */
+    private static PropertyRecord funchalPropertyRecord = null;
+
+    /**
+     * Private static reference to the #11517 property, once loaded.
+     * We'll assign it in main() after reading from CSV. Other classes
+     * can read it via {@link #getMachicoPropertyRecord()} but cannot overwrite it.
+     */
+    private static PropertyRecord machicoPropertyRecord = null;
+
+    /**
+     * Provides read-only access to our Funchal Sé reference property.
+     * If #11074 wasn't found in the CSV, this returns null.
+     */
+    public static PropertyRecord getFunchalPropertyRecord() {
+        return funchalPropertyRecord;
+    }
+
+    /**
+     * Sets the Funchal property record (objectID=11074),
+     * so unit tests can simulate different scenarios.
+     */
+    public static void setFunchalPropertyRecord(PropertyRecord record) {
+        funchalPropertyRecord = record;
+    }
+
+    /**
+     * Provides read-only access to our Machico reference property.
+     * If #11517 wasn't found in the CSV, this returns null.
+     */
+    public static PropertyRecord getMachicoPropertyRecord() {
+        return machicoPropertyRecord;
+    }
+
+    /**
+     * Sets the Machico property record (objectID=11517),
+     * so unit tests can simulate different scenarios.
+     */
+    public static void setMachicoPropertyRecord(PropertyRecord record) {
+        machicoPropertyRecord = record;
+    }
+
+    /**
      * Private constructor to prevent instantiation.
      * <p>
      * Since this class is designed to be run from its static {@code main} method
@@ -45,7 +102,7 @@ public final class App {
     public static void main(String[] args) {
         // 1. Read proprieties CSV
         CSVFileReader csvFileReader = new CSVFileReader();
-        List<PropertyRecord> propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.2.csv");
+        propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.2.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
 
         // 1a. Print distinct parishes and municipalities.
@@ -54,7 +111,25 @@ public final class App {
         logger.info("Distinct Parishes: {}", distinctParishes);
         logger.info("Distinct Municipalities: {}", distinctMunicipalities);
 
-        // 1b. Read metrics CSV
+        // 1b) Find objectID=11074 in the data, copy it into our private static field
+        funchalPropertyRecord = propertyRecords.stream()
+                .filter(pr -> pr.getObjectID() == 11074)
+                .findFirst()
+                .map(original -> new PropertyRecord(original.getObjectID(), original.getParcelID(),
+                        original.getParcelNumber(), original.getShapeLength(), original.getShapeArea(), original.getGeometry(),
+                        original.getOwner(), original.getParish(), original.getMunicipality(), original.getIsland()))
+                .orElse(null);
+
+        // 1c) Find objectID=11517 in the data, copy it into our private static field
+        machicoPropertyRecord = propertyRecords.stream()
+                .filter(pr -> pr.getObjectID() == 11517)
+                .findFirst()
+                .map(original -> new PropertyRecord(original.getObjectID(), original.getParcelID(),
+                        original.getParcelNumber(), original.getShapeLength(), original.getShapeArea(), original.getGeometry(),
+                        original.getOwner(), original.getParish(), original.getMunicipality(), original.getIsland()))
+                .orElse(null);
+
+        // 1d. Read metrics CSV
         List<ParishMetrics> metrics = CSVMetricsFileReader.importData();
         logger.info("Total metrics loaded: {}", metrics.size());
 
@@ -205,9 +280,13 @@ public final class App {
             System.out.println("Owner " + someOwner + " is adjacent to owners: " + ownerNeighbors);
         }
 
-        // 12. Calculate the distance to Funchal Sé (using the first property).
+        // 12. Calculate the distance to Funchal Sé.
         double distanceToFunchal = PropertyUtils.distanceToFunchal(1234, propertyRecords);
         System.out.println("Distance to Funchal Sé in kilometers: " + String.format("%.1f", distanceToFunchal/1000));
+
+        // 12a. Calculate the distance to Machico.
+        double distanceMachico = PropertyUtils.distanceToMachico(1234, propertyRecords);
+        System.out.println("Distance to Machico in kilometers: " + String.format("%.1f", distanceMachico/1000));
 
         // 13. Visualize the STRtree-based property graph in GraphStream.
         GraphVisualization.visualizeGraph(propertyGraphJgt);

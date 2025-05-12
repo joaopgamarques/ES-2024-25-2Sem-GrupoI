@@ -50,6 +50,17 @@ public final class App {
     private static PropertyRecord machicoPropertyRecord = null;
 
     /**
+     * Provides read-only access to the entire list of {@link PropertyRecord} objects
+     * loaded from the CSV. If the CSV was never read or an error occurred, this might
+     * be {@code null} or an empty list. Callers must not modify this list in place.
+     *
+     * @return the loaded list of PropertyRecord objects, or {@code null} if not yet assigned
+     */
+    public static List<PropertyRecord> getPropertyRecords() {
+        return propertyRecords;
+    }
+
+    /**
      * Provides read-only access to our Funchal Sé reference property.
      * If #11074 wasn't found in the CSV, this returns null.
      */

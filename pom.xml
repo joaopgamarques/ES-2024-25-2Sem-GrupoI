@@ -12,17 +12,13 @@
   <name>ES-Project-TerritoryManagement</name>
   <url>http://www.example.com</url>
 
-  <!-- ──────────────────────── -->
   <!-- General project settings -->
-  <!-- ──────────────────────── -->
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
   </properties>
 
-  <!-- ─────────────────────────────── -->
   <!-- Dependency management & imports -->
-  <!-- ─────────────────────────────── -->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -35,9 +31,7 @@
     </dependencies>
   </dependencyManagement>
 
-  <!-- ───────────── -->
   <!-- Dependencies  -->
-  <!-- ───────────── -->
   <dependencies>
     <!-- JUnit 5 -->
     <dependency>
@@ -96,9 +90,7 @@
     </dependency>
   </dependencies>
 
-  <!-- ─────────── -->
   <!-- Build setup -->
-  <!-- ─────────── -->
   <build>
     <plugins>
       <!-- Javadoc plugin wired to package phase and attaching javadoc.jar -->
@@ -136,9 +128,7 @@
         </executions>
       </plugin>
 
-      <!-- ──────────────────────── -->
       <!-- PMD & CPD static analysis -->
-      <!-- ──────────────────────── -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-pmd-plugin</artifactId>
@@ -177,6 +167,36 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+
+      <!-- https://mvnrepository.com/artifact/com.github.spotbugs/spotbugs-maven-plugin -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.9.3.0</version>
+        <executions>
+          <execution>
+            <id>spotbugs</id>
+            <!-- Usually we bind SpotBugs to the "verify" phase so it runs after tests -->
+            <phase>verify</phase>
+            <goals>
+              <goal>spotbugs</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <!--
+            "failOnError" false => won't break the build if issues are found;
+            set to true if you want to fail the build on SpotBugs warnings.
+          -->
+          <failOnError>false</failOnError>
+          <!--
+            "effort" can be Max/Min/Default; "Max" is more thorough but slower.
+            "threshold" can be High/Medium/Low to control bug prioritization.
+          -->
+          <effort>Max</effort>
+          <threshold>Low</threshold>
+        </configuration>
       </plugin>
     </plugins>
 

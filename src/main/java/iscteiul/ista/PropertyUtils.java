@@ -272,18 +272,18 @@ public final class PropertyUtils {
 
     /**
      * Computes the distance between the centroids of the given property (by its objectID)
-     * and the Funchal (Sé) reference property with {@code objectID=11074}, using
-     * the WKT geometries in memory. Both properties must be present in the provided list.
+     * and the pre-loaded Funchal (Sé) reference property stored in {@code App.funchalPropertyRecord}.
      *
-     * <p><strong>Important:</strong> This uses {@code geometry.getCentroid()} from JTS,
+     * <p><strong>Important:</strong> This method uses {@code geometry.getCentroid()} from JTS,
      * which returns the centroid in the same coordinate system as the geometry. If your
      * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you
      * must have a projected coordinate system.</p>
      *
-     * @param propertyId    the objectID of the source property whose centroid distance to #11074 we want
-     * @param allProperties a list of PropertyRecord objects, including #11074
-     * @return the distance between centroids as a double; {@code Double.NaN} if #11074 or
-     *         the source property is not found, or if the geometry parse fails
+     * @param propertyId    the objectID of the source property whose centroid distance to the
+     *                      Funchal (Sé) reference we want
+     * @param allProperties a list of PropertyRecord objects
+     * @return the distance between centroids as a double; {@code Double.NaN} if the property was
+     *         not found or if the Funchal reference is null/invalid, or if geometry parse fails
      */
     public static double distanceToFunchal(int propertyId, List<PropertyRecord> allProperties) {
         // 1) Find the source property record by propertyId
@@ -292,11 +292,8 @@ public final class PropertyUtils {
                 .findFirst()
                 .orElse(null);
 
-        // 2) Find the Funchal (Sé) property record with objectID=11074
-        PropertyRecord funchalSe = allProperties.stream()
-                .filter(pr -> pr.getObjectID() == 11074)
-                .findFirst()
-                .orElse(null);
+        // 2) Retrieve the Funchal (Sé) property from App
+        PropertyRecord funchalSe = App.getFunchalPropertyRecord();
 
         // If either property was not found, return NaN
         if (source == null || funchalSe == null) {
@@ -324,6 +321,64 @@ public final class PropertyUtils {
 
             // 5) Compute and return distance between centroids
             return centroidSource.distance(centroidFunchal);
+
+        } catch (org.locationtech.jts.io.ParseException e) {
+            // If the geometry fails to parse, return NaN
+            return Double.NaN;
+        }
+    }
+
+    /**
+     * Computes the distance between the centroids of the given property (by its objectID)
+     * and the pre-loaded Machico reference property stored in {@code App.machicoPropertyRecord}.
+     *
+     * <p><strong>Important:</strong> This method uses {@code geometry.getCentroid()} from JTS,
+     * which returns the centroid in the same coordinate system as the geometry. If your
+     * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you
+     * must have a projected coordinate system.</p>
+     *
+     * @param propertyId    the objectID of the source property whose centroid distance to the
+     *                      Machico reference we want
+     * @param allProperties a list of PropertyRecord objects
+     * @return the distance between centroids as a double; {@code Double.NaN} if the property was
+     *         not found or if the Funchal reference is null/invalid, or if geometry parse fails
+     */
+    public static double distanceToMachico(int propertyId, List<PropertyRecord> allProperties) {
+        // 1) Find the source property record by propertyId
+        PropertyRecord source = allProperties.stream()
+                .filter(pr -> pr.getObjectID() == propertyId)
+                .findFirst()
+                .orElse(null);
+
+        // 2) Retrieve the Machico property from App
+        PropertyRecord machicoRef = App.getMachicoPropertyRecord();
+
+        // If either property was not found, return NaN
+        if (source == null || machicoRef == null) {
+            return Double.NaN;
+        }
+
+        // If either geometry is null or blank, return NaN
+        String wktSource = source.getGeometry();
+        String wktMachico = machicoRef.getGeometry();
+        if (wktSource == null || wktMachico == null ||
+                wktSource.isBlank() || wktMachico.isBlank()) {
+            return Double.NaN;
+        }
+
+        try {
+            // 3) Parse WKT with JTS
+            org.locationtech.jts.geom.Geometry geomSource =
+                    new org.locationtech.jts.io.WKTReader().read(wktSource);
+            org.locationtech.jts.geom.Geometry geomMachico =
+                    new org.locationtech.jts.io.WKTReader().read(wktMachico);
+
+            // 4) Get centroids
+            org.locationtech.jts.geom.Point centroidSource = geomSource.getCentroid();
+            org.locationtech.jts.geom.Point centroidMachico = geomMachico.getCentroid();
+
+            // 5) Compute and return distance between centroids
+            return centroidSource.distance(centroidMachico);
 
         } catch (org.locationtech.jts.io.ParseException e) {
             // If the geometry fails to parse, return NaN

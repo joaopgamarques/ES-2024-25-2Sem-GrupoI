@@ -61,6 +61,14 @@ public final class App {
     }
 
     /**
+     * Sets the property records list,
+     * so unit tests can simulate different scenarios.
+     */
+    public static void setPropertyRecords(List<PropertyRecord> records) {
+        propertyRecords = records;
+    }
+
+    /**
      * Provides read-only access to our Funchal Sé reference property.
      * If #11074 wasn't found in the CSV, this returns null.
      */
@@ -292,11 +300,11 @@ public final class App {
         }
 
         // 12. Calculate the distance to Funchal Sé.
-        double distanceToFunchal = PropertyUtils.distanceToFunchal(1234, propertyRecords);
+        double distanceToFunchal = PropertyUtils.distanceToFunchal(1234);
         System.out.println("Distance to Funchal Sé in kilometers: " + String.format("%.1f", distanceToFunchal/1000));
 
         // 12a. Calculate the distance to Machico.
-        double distanceMachico = PropertyUtils.distanceToMachico(1234, propertyRecords);
+        double distanceMachico = PropertyUtils.distanceToMachico(1234);
         System.out.println("Distance to Machico in kilometers: " + String.format("%.1f", distanceMachico/1000));
 
         // 13. Visualize the STRtree-based property graph in GraphStream.

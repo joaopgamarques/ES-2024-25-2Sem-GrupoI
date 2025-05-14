@@ -272,22 +272,24 @@ public final class PropertyUtils {
 
     /**
      * Computes the distance between the centroids of the given property (by its objectID)
-     * and the pre-loaded Funchal (Sé) reference property stored in {@code App.funchalPropertyRecord}.
+     * and the pre-loaded Funchal (Sé) reference property stored in {@link App#getFunchalPropertyRecord()}.
+     * <p>
+     * This method no longer accepts a list of properties as an argument.
+     * Instead, it retrieves all records via {@link App#getPropertyRecords()}.
      *
-     * <p><strong>Important:</strong> This method uses {@code geometry.getCentroid()} from JTS,
+     * <p><strong>Important:</strong> This uses {@code geometry.getCentroid()} from JTS,
      * which returns the centroid in the same coordinate system as the geometry. If your
      * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you
      * must have a projected coordinate system.</p>
      *
-     * @param propertyId    the objectID of the source property whose centroid distance to the
-     *                      Funchal (Sé) reference we want
-     * @param allProperties a list of PropertyRecord objects
-     * @return the distance between centroids as a double; {@code Double.NaN} if the property was
-     *         not found or if the Funchal reference is null/invalid, or if geometry parse fails
+     * @param propertyId the objectID of the source property whose centroid distance to
+     *                   the Funchal (Sé) reference we want
+     * @return the distance between centroids as a double; {@code Double.NaN} if the property
+     *         or Funchal reference is missing/invalid, or if geometry parse fails
      */
-    public static double distanceToFunchal(int propertyId, List<PropertyRecord> allProperties) {
+    public static double distanceToFunchal(int propertyId) {
         // 1) Find the source property record by propertyId
-        PropertyRecord source = allProperties.stream()
+        PropertyRecord source = App.getPropertyRecords().stream()
                 .filter(pr -> pr.getObjectID() == propertyId)
                 .findFirst()
                 .orElse(null);
@@ -330,22 +332,24 @@ public final class PropertyUtils {
 
     /**
      * Computes the distance between the centroids of the given property (by its objectID)
-     * and the pre-loaded Machico reference property stored in {@code App.machicoPropertyRecord}.
+     * and the pre-loaded Machico reference property stored in {@link App#getMachicoPropertyRecord()}.
+     * <p>
+     * This method no longer accepts a list of properties as an argument.
+     * Instead, it retrieves all records via {@link App#getPropertyRecords()}.
      *
-     * <p><strong>Important:</strong> This method uses {@code geometry.getCentroid()} from JTS,
+     * <p><strong>Important:</strong> This uses {@code geometry.getCentroid()} from JTS,
      * which returns the centroid in the same coordinate system as the geometry. If your
      * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you
      * must have a projected coordinate system.</p>
      *
-     * @param propertyId    the objectID of the source property whose centroid distance to the
-     *                      Machico reference we want
-     * @param allProperties a list of PropertyRecord objects
-     * @return the distance between centroids as a double; {@code Double.NaN} if the property was
-     *         not found or if the Funchal reference is null/invalid, or if geometry parse fails
+     * @param propertyId the objectID of the source property whose centroid distance to
+     *                   the Machico reference we want
+     * @return the distance between centroids as a double; {@code Double.NaN} if the property
+     *         or Machico reference is missing/invalid, or if geometry parse fails
      */
-    public static double distanceToMachico(int propertyId, List<PropertyRecord> allProperties) {
+    public static double distanceToMachico(int propertyId) {
         // 1) Find the source property record by propertyId
-        PropertyRecord source = allProperties.stream()
+        PropertyRecord source = App.getPropertyRecords().stream()
                 .filter(pr -> pr.getObjectID() == propertyId)
                 .findFirst()
                 .orElse(null);

@@ -6,57 +6,61 @@ import org.junit.jupiter.api.*;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTReader;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
- * Tests for {@link PropertyUtils}, verifying the functionality of filtering
- * properties by owner, municipality, and island, and checking adjacency among
- * polygonal geometries.
+ * <h2>PropertyUtilsTest</h2>
  *
- * <p>These tests rely on sample {@link PropertyRecord} objects with valid WKT
- * (Well-Known Text) polygons to confirm adjacency. Specifically:
+ * <p>
+ * This test class covers the functionality in {@link PropertyUtils}, including:
  * <ul>
- *     <li>{@code rec1} and {@code rec2} share a boundary (adjacent)</li>
- *     <li>{@code rec3} is far away, ensuring no adjacency with {@code rec1} or {@code rec2}</li>
+ *   <li>Filtering {@link PropertyRecord} by owner, municipality, island, or parish</li>
+ *   <li>Checking adjacency (touching) of properties using WKT polygons</li>
+ *   <li>Computing average areas, grouped areas, and merging properties owned by the same owner</li>
+ *   <li>Distance calculations to Funchal (Sé) and Machico reference properties via
+ *       {@link App#getFunchalPropertyRecord()} and {@link App#getMachicoPropertyRecord()}</li>
  * </ul>
  *
- * <p>Filtering tests validate that {@code findByOwner()}, {@code findByMunicipality()},
- * and {@code findByIsland()} return the correct subset or an empty list where appropriate.
- * Adjacency tests use {@link GeometryUtils#areAdjacent(String, String)} behind the scenes
- * via the utility methods in {@code PropertyUtils}.
+ * <p>This test suite uses a small set of sample records to exercise each method,
+ * ensuring correct behavior for valid, invalid, and edge-case scenarios.</p>
+ *
+ * @see PropertyUtils
+ * @see PropertyRecord
+ * @see App
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class PropertyUtilsTest {
 
-    /** A shared list of sample {@link PropertyRecord} objects for all tests. */
+    /**
+     * A shared list of sample {@link PropertyRecord} objects for testing.
+     * Populated in {@link #setUpBeforeAll()} and cleared in {@link #tearDownAfterAll()}.
+     */
     private static List<PropertyRecord> sampleRecords;
 
-    /** Sample property with geometry adjacent to rec2. */
+    /** A sample property (#1) that is adjacent to {@code rec2}. */
     private static PropertyRecord rec1;
 
-    /** Sample property with geometry adjacent to rec1. */
+    /** A sample property (#2) that is adjacent to {@code rec1}. */
     private static PropertyRecord rec2;
 
-    /** Sample property placed far away to ensure non-adjacency. */
+    /** A sample property (#3) placed far away (non-adjacent to the others). */
     private static PropertyRecord rec3;
 
     /**
-     * Sets up the sample property records before any tests run.
-     * Each record has different owners, municipalities, and polygons.
+     * Initializes a few sample properties before any tests run,
+     * assigning them into {@link #sampleRecords} and also populating
+     * {@code App.propertyRecords} so that distance-related methods
+     * (e.g., {@link PropertyUtils#distanceToFunchal(int)}) won't
+     * encounter a null list.
      */
     @BeforeAll
     static void setUpBeforeAll() {
         sampleRecords = new ArrayList<>();
-
-        /*
-         * rec1 and rec2 share a boundary in their WKT polygons,
-         * rec3 is far away to ensure a non-adjacent scenario.
-         */
 
         // rec1: a 1x1 square from (0,0) to (1,1).
         rec1 = new PropertyRecord(
@@ -86,7 +90,7 @@ public class PropertyUtilsTest {
                 "Ilha da Madeira (Madeira)"
         );
 
-        // rec3: placed at (10,10) to (11,11), far from rec1/rec2.
+        // rec3: placed far away at (10,10)-(11,11).
         rec3 = new PropertyRecord(
                 3,
                 1234567L,
@@ -103,27 +107,31 @@ public class PropertyUtilsTest {
         sampleRecords.add(rec1);
         sampleRecords.add(rec2);
         sampleRecords.add(rec3);
+
+        // *** IMPORTANT: Populate App.propertyRecords so distanceToFunchal(...) won't fail with NPE. ***
+        App.setPropertyRecords(sampleRecords);
     }
 
     /**
-     * Clears the sample data after all tests finish.
+     * Clears the shared {@link #sampleRecords} list after all tests finish.
      */
     @AfterAll
     static void tearDownAfterAll() {
         sampleRecords.clear();
+        // Optionally also clear App.propertyRecords if you want:
+        // App.setPropertyRecords(null);
     }
 
     // ------------------------------------------------------------------------
     // TESTS for findByOwner()
     // ------------------------------------------------------------------------
-
     @Test
     @Order(1)
     void testFindByOwner_existingOwner() {
         List<PropertyRecord> found = PropertyUtils.findByOwner(sampleRecords, 93);
         assertEquals(2, found.size(), "Should find 2 properties owned by 93.");
         assertTrue(found.contains(rec1) && found.contains(rec2),
-                "The returned list should contain rec1 and rec2.");
+                "The returned list should contain rec1 and rec2 for owner=93.");
     }
 
     @Test
@@ -136,7 +144,6 @@ public class PropertyUtilsTest {
     // ------------------------------------------------------------------------
     // TESTS for findByMunicipality()
     // ------------------------------------------------------------------------
-
     @Test
     @Order(3)
     void testFindByMunicipality_match() {
@@ -157,19 +164,18 @@ public class PropertyUtilsTest {
     @Order(5)
     void testFindByMunicipality_nullArg() {
         List<PropertyRecord> found = PropertyUtils.findByMunicipality(sampleRecords, null);
-        assertNotNull(found, "The method should return a non-null empty list for null input.");
+        assertNotNull(found, "Should return a non-null empty list for null input.");
         assertTrue(found.isEmpty(), "Should return an empty list if municipality is null.");
     }
 
     // ------------------------------------------------------------------------
     // TESTS for findByIsland()
     // ------------------------------------------------------------------------
-
     @Test
     @Order(6)
     void testFindByIsland_match() {
         List<PropertyRecord> found = PropertyUtils.findByIsland(sampleRecords, "Ilha da Madeira (Madeira)");
-        assertEquals(3, found.size(), "Should find all 3 sample records on 'Ilha da Madeira (Madeira)'.");
+        assertEquals(3, found.size(), "Should find all 3 sample records for that island name.");
         assertTrue(found.contains(rec1) && found.contains(rec2) && found.contains(rec3),
                 "The returned list should contain rec1, rec2, and rec3.");
     }
@@ -186,25 +192,24 @@ public class PropertyUtilsTest {
     void testFindByIsland_nullArg() {
         List<PropertyRecord> found = PropertyUtils.findByIsland(sampleRecords, null);
         assertNotNull(found, "Should return a non-null list, even if argument is null.");
-        assertTrue(found.isEmpty(), "Should return an empty list for null island.");
+        assertTrue(found.isEmpty(), "Should return an empty list for null island input.");
     }
 
     // ------------------------------------------------------------------------
     // TESTS for adjacency: arePropertiesAdjacent() + findAdjacentProperties()
     // ------------------------------------------------------------------------
-
     @Test
     @Order(9)
     void testArePropertiesAdjacent_true() {
         boolean adjacent = PropertyUtils.arePropertiesAdjacent(rec1, rec2);
-        assertTrue(adjacent, "rec1 and rec2 should be adjacent based on their shared boundary.");
+        assertTrue(adjacent, "rec1 and rec2 share a boundary => should be adjacent.");
     }
 
     @Test
     @Order(10)
     void testArePropertiesAdjacent_false() {
         boolean adjacent = PropertyUtils.arePropertiesAdjacent(rec1, rec3);
-        assertFalse(adjacent, "rec1 and rec3 should NOT be adjacent.");
+        assertFalse(adjacent, "rec1 and rec3 are far apart => not adjacent.");
     }
 
     @Test
@@ -230,9 +235,9 @@ public class PropertyUtilsTest {
     void testGetDistinctParishes() {
         Set<String> distinct = PropertyUtils.getDistinctParishes(sampleRecords);
         assertTrue(distinct.contains("Arco da Calheta"),
-                "Should include 'Arco da Calheta' in the set.");
+                "Should include 'Arco da Calheta' in the set of parishes.");
         assertTrue(distinct.contains("Some Parish"),
-                "Should include 'Some Parish' in the set.");
+                "Should include 'Some Parish' in the set of parishes.");
     }
 
     @Test
@@ -244,19 +249,18 @@ public class PropertyUtilsTest {
         assertTrue(distinct.contains("Funchal"),
                 "Should include 'Funchal' from rec3.");
         assertEquals(2, distinct.size(),
-                "Expected exactly 2 unique municipality names.");
+                "Expected exactly 2 unique municipality names: Calheta & Funchal.");
     }
 
     // ------------------------------------------------------------------------
     // Additional tests for findByOwner(), average area, grouping, etc.
     // ------------------------------------------------------------------------
-
     @Test
     @Order(15)
     void testFindByOwner_sameOwnerAsRec3() {
         List<PropertyRecord> found = PropertyUtils.findByOwner(sampleRecords, 999);
         assertEquals(1, found.size(), "We expect exactly 1 property (rec3) for owner=999.");
-        assertTrue(found.contains(rec3), "The found list should include rec3 only.");
+        assertTrue(found.contains(rec3), "The found list should include only rec3 for owner=999.");
     }
 
     @Test
@@ -264,9 +268,9 @@ public class PropertyUtilsTest {
     void testCalculateAverageArea_valid() {
         double average = PropertyUtils.calculateAverageArea(sampleRecords);
         // rec1.area=202.0598, rec2.area=300.0, rec3.area=600.0
-        // sum=1102.0598, #=3 => average=367.353266...
+        // sum=1102.0598, count=3 => average ~367.353266
         assertEquals(367.35, average, 0.01,
-                "Error: Expected average area ~367.35 for the sampleRecords.");
+                "Expected average area ~367.35 for the sampleRecords.");
     }
 
     @Test
@@ -281,12 +285,12 @@ public class PropertyUtilsTest {
     @Order(18)
     void testGroupPropertiesByOwner() {
         Map<Integer, List<PropertyRecord>> grouped = PropertyUtils.groupPropertiesByOwner(sampleRecords);
-        // We expect 2 owners total: 93 (rec1 & rec2), 999 (rec3).
-        assertEquals(2, grouped.size(), "Error: Expected 2 owners in the grouped map.");
-        assertTrue(grouped.containsKey(93), "Should have a key for owner=93.");
+        // We expect 2 owners: 93 (rec1, rec2), 999 (rec3).
+        assertEquals(2, grouped.size(), "Expected exactly 2 owners in the grouped map: 93 and 999.");
+        assertTrue(grouped.containsKey(93),  "Should have a key for owner=93.");
         assertTrue(grouped.containsKey(999), "Should have a key for owner=999.");
         assertEquals(2, grouped.get(93).size(),
-                "Owner=93 should have 2 properties (rec1, rec2).");
+                "Owner=93 should have 2 properties (rec1 and rec2).");
         assertEquals(1, grouped.get(999).size(),
                 "Owner=999 should have 1 property (rec3).");
     }
@@ -296,108 +300,91 @@ public class PropertyUtilsTest {
     void testCalculateAverageGroupedArea_nullGraph() {
         double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, null);
         assertEquals(0.0, average,
-                "Error: Expected average grouped area to be 0.0 for null graph.");
+                "Expected average grouped area to be 0.0 with a null graph input.");
     }
 
     @Test
     @Order(20)
     void testCalculateAverageGroupedArea_connected() {
-        org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+        // Build a small graph that connects rec1 and rec2, leaving rec3 disconnected
+        SimpleGraph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
         graph.addVertex(rec1);
         graph.addVertex(rec2);
         graph.addVertex(rec3);
-        // Connect rec1 and rec2
-        graph.addEdge(rec1, rec2);
+        graph.addEdge(rec1, rec2);  // connect these two
 
         double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
         // rec1 + rec2 => total area = 202.0598 + 300 = 502.0598
         // rec3 => 600.0
-        // 2 connected components => (502.0598 + 600) / 2 = 551.0299
+        // 2 connected components => average => (502.0598 + 600) / 2 = 551.0299
         assertEquals(551.0299, average, 0.01,
-                "Error: The average of the connected groups is incorrect.");
+                "The average of the 2 connected groups is incorrect.");
     }
 
     @Test
     @Order(21)
     void testCalculateAverageGroupedArea_disconnected() {
-        org.jgrapht.Graph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+        // No edges => rec1, rec2, rec3 each is a separate connected component
+        SimpleGraph<PropertyRecord, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
         graph.addVertex(rec1);
         graph.addVertex(rec2);
         graph.addVertex(rec3);
-        // No edges => all disconnected
-        double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
 
+        double average = PropertyUtils.calculateAverageGroupedArea(sampleRecords, graph);
         // sum=1102.0598 / 3 => ~367.3532
         double roundedAverage = Math.round(average * 100.0) / 100.0;
         assertEquals(367.35, roundedAverage, 0.01,
-                "Error: The average area of disconnected groups is incorrect.");
+                "The average area of disconnected groups is incorrect.");
     }
 
-    /**
-     * Verifies we get a valid (non-NaN) distance if both:
-     * - The source property #1 has valid geometry
-     * - App.funchalPropertyRecord is also valid
-     */
+    // ------------------------------------------------------------------------
+    // TESTS for distanceToFunchal (no-arg version calls App.getPropertyRecords())
+    // ------------------------------------------------------------------------
     @Test
     @Order(22)
     void testDistanceToFunchal_validCase() {
-        // 1) local copy of sampleRecords
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // 2) define a valid "funchal" record, objectID=11074
-        // geometry => a 1x1 square at (2..3,2..3) => centroid(2.5,2.5)
+        // define a valid "funchal" record => centroid(2.5,2.5)
         PropertyRecord funchalSe = new PropertyRecord(
-                11074,    // the "Funchal" ID
-                999999L,  // arbitrary
-                888888L,  // arbitrary
+                11074,
+                999999L,
+                888888L,
                 0.0,
                 0.0,
                 "POLYGON((2 2,3 2,3 3,2 3,2 2))", // centroid(2.5,2.5)
-                1234,     // owner
+                1234,
                 "Funchal (Sé)",
                 "Funchal",
                 "Ilha da Madeira (Madeira)"
         );
-
-        // 3) set in App
+        // set it in App
         App.setFunchalPropertyRecord(funchalSe);
 
-        // 4) call distanceToFunchal(1, localRecords)
-        double dist = PropertyUtils.distanceToFunchal(1, localRecords);
+        // Now call distance => rec1 has centroid(0.5,0.5)
+        double dist = PropertyUtils.distanceToFunchal(1);
 
-        // => centroid #1 is (0.5,0.5); centroid #11074 is (2.5,2.5)
-        // => distance = sqrt((2.0)^2 + (2.0)^2)=2.8284
+        // => distance ~ sqrt((2.0)^2 + (2.0)^2)=2.8284
         assertFalse(Double.isNaN(dist),
-                "Distance should be valid if both reference & source have valid geometry.");
+                "Distance should be valid with both reference & source geometry valid.");
         assertEquals(2.8284, dist, 1e-3,
-                "Distance ~ sqrt((2.5-0.5)^2 + (2.5-0.5)^2)=2.8284");
+                "Distance between (0.5,0.5) & (2.5,2.5) => ~2.8284");
     }
 
-    /**
-     * Verifies that distance is NaN if the Funchal reference in App is null.
-     */
     @Test
     @Order(23)
     void testDistanceToFunchal_missingFunchalRecord() {
-        // 1) clear the reference
+        // Nullify the reference => simulate "Funchal not found"
         App.setFunchalPropertyRecord(null);
 
-        // 2) property #1 is in sampleRecords
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // 3) distance => should be NaN because we have no Funchal reference
-        double dist = PropertyUtils.distanceToFunchal(1, localRecords);
+        // distance => should be NaN
+        double dist = PropertyUtils.distanceToFunchal(1);
         assertTrue(Double.isNaN(dist),
-                "distanceToFunchal should be NaN if the Funchal reference is null.");
+                "distanceToFunchal must be NaN if the Funchal reference is null.");
     }
 
-    /**
-     * Verifies that distance is NaN if the requested source property is missing.
-     */
     @Test
     @Order(24)
     void testDistanceToFunchal_missingSourceProperty() {
-        // 1) define a valid Funchal reference
+        // define a valid Funchal reference
         PropertyRecord funchalSe = new PropertyRecord(
                 11074, 999999L, 888888L,
                 0.0, 0.0,
@@ -409,30 +396,20 @@ public class PropertyUtilsTest {
         );
         App.setFunchalPropertyRecord(funchalSe);
 
-        // 2) localRecords does NOT contain propertyId=9999 => missing
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-        // sampleRecords only has ID=1 (and maybe others if you added them)
-
-        // 3) request distance => should be NaN
-        double dist = PropertyUtils.distanceToFunchal(9999, localRecords);
+        // propertyId=9999 doesn't exist in sampleRecords => distance => NaN
+        double dist = PropertyUtils.distanceToFunchal(9999);
         assertTrue(Double.isNaN(dist),
-                "Should return NaN because propertyId=9999 doesn't exist in localRecords.");
+                "Should be NaN because propertyId=9999 isn't in sampleRecords.");
     }
 
-    /**
-     * Verifies that distance is NaN if the Funchal reference geometry is blank or invalid.
-     */
     @Test
     @Order(25)
     void testDistanceToFunchal_invalidOrBlankGeometry() {
-        // 1) localRecords => has property #1 => geometry is valid
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // 1a) define a blank-geometry record for funchal
+        // (a) blank geometry
         PropertyRecord blankGeomFunchal = new PropertyRecord(
                 11074, 999999L, 888888L,
                 0.0, 0.0,
-                "", // blank geometry
+                "", // blank
                 1234,
                 "Funchal (Sé)",
                 "Funchal",
@@ -440,15 +417,15 @@ public class PropertyUtilsTest {
         );
         App.setFunchalPropertyRecord(blankGeomFunchal);
 
-        double dist = PropertyUtils.distanceToFunchal(1, localRecords);
+        double dist = PropertyUtils.distanceToFunchal(1);
         assertTrue(Double.isNaN(dist),
-                "If Funchal geometry is blank, distance must be NaN.");
+                "Blank geometry => distance must be NaN.");
 
-        // 2) define an invalid-geometry record
+        // (b) invalid geometry
         PropertyRecord invalidGeomFunchal = new PropertyRecord(
                 11074, 999999L, 888888L,
                 0.0, 0.0,
-                "NOT_A_VALID_WKT", // invalid
+                "NOT_A_VALID_WKT",
                 1234,
                 "Funchal (Sé)",
                 "Funchal",
@@ -456,74 +433,56 @@ public class PropertyUtilsTest {
         );
         App.setFunchalPropertyRecord(invalidGeomFunchal);
 
-        dist = PropertyUtils.distanceToFunchal(1, localRecords);
+        dist = PropertyUtils.distanceToFunchal(1);
         assertTrue(Double.isNaN(dist),
-                "With invalid geometry, distance must also be NaN.");
+                "Invalid geometry => distance must be NaN.");
     }
 
-    /**
-     * Verifies a valid (non-NaN) distance if both:
-     * - The source property (#1) has valid geometry
-     * - App.machicoPropertyRecord is also valid
-     */
+    // ------------------------------------------------------------------------
+    // TESTS for distanceToMachico (no-arg version calls App.getPropertyRecords())
+    // ------------------------------------------------------------------------
     @Test
     @Order(26)
     void testDistanceToMachico_validCase() {
-        // local copy for the source property
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // Define a valid "machico" record (ID=11517) => 1x1 square at (2..3,2..3) => centroid(2.5,2.5)
+        // rec1 => centroid(0.5,0.5)
+        // define Machico => centroid(2.5,2.5)
         PropertyRecord machicoRef = new PropertyRecord(
                 11517,
                 999999L,
                 888888L,
                 0.0,
                 0.0,
-                "POLYGON((2 2,3 2,3 3,2 3,2 2))", // centroid(2.5,2.5)
+                "POLYGON((2 2,3 2,3 3,2 3,2 2))",
                 1234,
                 "Machico",
                 "Machico",
                 "Ilha da Madeira (Madeira)"
         );
-        // 1) Set the Machico reference
         App.setMachicoPropertyRecord(machicoRef);
 
-        // 2) Call distanceToMachico(1, localRecords)
-        // source property #1 => centroid(0.5,0.5), reference => (2.5,2.5)
-        double dist = PropertyUtils.distanceToMachico(1, localRecords);
-
-        // distance => sqrt(2^2 + 2^2) = 2.8284
+        double dist = PropertyUtils.distanceToMachico(1);
+        // => sqrt((2.0)^2 + (2.0)^2)=2.8284
         assertFalse(Double.isNaN(dist),
-                "Distance should be valid if both reference & source have valid geometry.");
+                "Distance should be valid with reference & source geometry valid.");
         assertEquals(2.8284, dist, 1e-3,
-                "Distance between (0.5,0.5) & (2.5,2.5) => ~2.8284");
+                "Distance (0.5,0.5)->(2.5,2.5) => 2.8284");
     }
 
-    /**
-     * Verifies distance is NaN if the Machico reference in App is null.
-     */
     @Test
     @Order(27)
     void testDistanceToMachico_missingMachicoRecord() {
-        // Clear the reference => simulate not found
+        // Nullify => Machico reference is absent
         App.setMachicoPropertyRecord(null);
 
-        // localRecords still has property #1
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // distance => NaN because we have no Machico reference
-        double dist = PropertyUtils.distanceToMachico(1, localRecords);
+        double dist = PropertyUtils.distanceToMachico(1);
         assertTrue(Double.isNaN(dist),
-                "Should be NaN if Machico reference is null.");
+                "distanceToMachico must be NaN if reference is null.");
     }
 
-    /**
-     * Verifies distance is NaN if the requested source property is missing.
-     */
     @Test
     @Order(28)
     void testDistanceToMachico_missingSourceProperty() {
-        // Define a valid Machico reference
+        // define a valid Machico
         PropertyRecord machicoRef = new PropertyRecord(
                 11517, 999999L, 888888L,
                 0.0, 0.0,
@@ -535,25 +494,16 @@ public class PropertyUtilsTest {
         );
         App.setMachicoPropertyRecord(machicoRef);
 
-        // localRecords does NOT contain propertyId=9999 => missing
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // distance => NaN
-        double dist = PropertyUtils.distanceToMachico(9999, localRecords);
+        // 9999 not in sampleRecords => distance => NaN
+        double dist = PropertyUtils.distanceToMachico(9999);
         assertTrue(Double.isNaN(dist),
-                "Should be NaN because propertyId=9999 doesn't exist in localRecords.");
+                "Should be NaN if the source property is not in sampleRecords.");
     }
 
-    /**
-     * Verifies distance is NaN if Machico reference geometry is blank or invalid.
-     */
     @Test
     @Order(29)
     void testDistanceToMachico_invalidOrBlankGeometry() {
-        // localRecords => has property #1 => valid
-        List<PropertyRecord> localRecords = new ArrayList<>(sampleRecords);
-
-        // (a) define Machico with blank geometry
+        // (a) blank geometry
         PropertyRecord blankGeomMachico = new PropertyRecord(
                 11517, 999999L, 888888L,
                 0.0, 0.0,
@@ -565,15 +515,15 @@ public class PropertyUtilsTest {
         );
         App.setMachicoPropertyRecord(blankGeomMachico);
 
-        double dist = PropertyUtils.distanceToMachico(1, localRecords);
+        double dist = PropertyUtils.distanceToMachico(1);
         assertTrue(Double.isNaN(dist),
-                "If Machico geometry is blank, distance must be NaN.");
+                "Blank geometry => distance must be NaN.");
 
-        // (b) define an invalid-geometry Machico
+        // (b) invalid geometry
         PropertyRecord invalidGeomMachico = new PropertyRecord(
                 11517, 999999L, 888888L,
                 0.0, 0.0,
-                "NOT_A_VALID_WKT", // invalid
+                "NOT_A_VALID_WKT",
                 1234,
                 "Machico",
                 "Machico",
@@ -581,9 +531,9 @@ public class PropertyUtilsTest {
         );
         App.setMachicoPropertyRecord(invalidGeomMachico);
 
-        dist = PropertyUtils.distanceToMachico(1, localRecords);
+        dist = PropertyUtils.distanceToMachico(1);
         assertTrue(Double.isNaN(dist),
-                "With invalid geometry, distance must also be NaN.");
+                "Invalid geometry => distance must be NaN.");
     }
 
     // ------------------------------------------------------------------------
@@ -592,8 +542,7 @@ public class PropertyUtilsTest {
     private static final WKTReader WKT_READER = new WKTReader();
 
     /**
-     * Test merging two adjacent 1x1 squares of the same owner.
-     * Result should be a single merged record with total area=2.
+     * Merging two adjacent 1x1 squares of the same owner yields a single property with area=2.
      */
     @Test
     @Order(30)
@@ -605,7 +554,7 @@ public class PropertyUtilsTest {
                 4.0,
                 1.0,
                 "POLYGON((0 0,1 0,1 1,0 1,0 0))",
-                10,   // Owner=10
+                10,
                 "ParishA",
                 "MunicipalityA",
                 "IslandA"
@@ -617,7 +566,7 @@ public class PropertyUtilsTest {
                 4.0,
                 1.0,
                 "POLYGON((1 0,2 0,2 1,1 1,1 0))",
-                10,   // Same owner
+                10,
                 "ParishA",
                 "MunicipalityA",
                 "IslandA"
@@ -628,25 +577,23 @@ public class PropertyUtilsTest {
         props.add(recB);
 
         List<PropertyRecord> mergedList = PropertyUtils.mergeAdjacentPropertiesSameOwner(props);
-        assertEquals(1, mergedList.size(),
-                "Two adjacent squares of the same owner => one merged result.");
+        assertEquals(1, mergedList.size(), "Two adjacent squares => one merged result.");
 
         PropertyRecord merged = mergedList.get(0);
         Geometry geom = WKT_READER.read(merged.getGeometry());
-        assertEquals(2.0, geom.getArea(), 0.0001,
-                "Merged area of two adjacent 1x1 squares should be 2.0");
+        assertEquals(2.0, geom.getArea(), 1e-4,
+                "Merged area of adjacent 1x1 squares should be 2.0");
         assertTrue(geom.getGeometryType().contains("MultiPolygon"),
-                "Should be a MultiPolygon per the forcing logic if union is a single polygon.");
+                "Union of a single Polygon is forced to MultiPolygon.");
         assertEquals(10, merged.getOwner(),
-                "Owner should match the 'largest' or same property since both are area=1.");
+                "Owner should remain the same (10).");
     }
 
     /**
-     * Test merging three 1x1 squares in a row for the same owner.
-     * Expect a single merged shape with area=3.0.
+     * Merging three 1x1 squares in a row (all same owner) => a single property with area=3.0.
      */
     @Test
-    @Order(27)
+    @Order(31)
     void testMergeThreePropertiesSameOwnerAllAdjacent() throws Exception {
         PropertyRecord rec1 = new PropertyRecord(
                 201, 1000L, 2001L, 4.0, 1.0,
@@ -664,24 +611,23 @@ public class PropertyUtilsTest {
         List<PropertyRecord> props = List.of(rec1, rec2, rec3);
         List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(props);
         assertEquals(1, merged.size(),
-                "All three squares in a row => one merged property.");
+                "Three squares in a row => single merged property.");
 
         Geometry unionGeom = WKT_READER.read(merged.get(0).getGeometry());
-        assertEquals(3.0, unionGeom.getArea(), 0.0001,
-                "3 adjacent 1x1 squares horizontally => area=3.0");
+        assertEquals(3.0, unionGeom.getArea(), 1e-4,
+                "Three adjacent 1x1 squares => area=3.0");
     }
 
     /**
-     * Tests no merge occurs when two same-owner properties are not adjacent.
+     * If two same-owner properties are not adjacent, no merging occurs.
      */
     @Test
-    @Order(28)
+    @Order(32)
     void testNoMergeIfNotAdjacent() {
         PropertyRecord recA = new PropertyRecord(
                 301, 2000L, 3001L, 4.0, 1.0,
                 "POLYGON((0 0,1 0,1 1,0 1,0 0))",
                 77, "ParishA", "MunicipalityA", "IslandA");
-        // Far away
         PropertyRecord recB = new PropertyRecord(
                 302, 2001L, 3002L, 4.0, 1.0,
                 "POLYGON((10 10,11 10,11 11,10 11,10 10))",
@@ -689,16 +635,16 @@ public class PropertyUtilsTest {
 
         List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(List.of(recA, recB));
         assertEquals(2, merged.size(),
-                "No adjacency => no merge => same list size=2.");
+                "No adjacency => no merge => both remain separate.");
         assertTrue(merged.contains(recA) && merged.contains(recB),
-                "They remain unmodified.");
+                "No changes if they are not adjacent.");
     }
 
     /**
-     * Tests that different owners, even if adjacent, never get merged.
+     * Different owners, even if geometry is adjacent, must not be merged.
      */
     @Test
-    @Order(29)
+    @Order(33)
     void testNoMergeAcrossDifferentOwners() {
         PropertyRecord owner10 = new PropertyRecord(
                 401, 3000L, 4001L, 4.0, 1.0,
@@ -715,11 +661,10 @@ public class PropertyUtilsTest {
     }
 
     /**
-     * Tests that invalid geometry is skipped. If all are invalid, fallback to the largest property,
-     * if at least one is valid, union only the valid ones.
+     * If geometry is invalid, it is skipped. If all are invalid, fallback to largest property.
      */
     @Test
-    @Order(30)
+    @Order(34)
     void testInvalidGeometrySkipped() throws Exception {
         PropertyRecord valid = new PropertyRecord(
                 501, 4000L, 5001L, 4.0, 1.0,
@@ -733,30 +678,30 @@ public class PropertyUtilsTest {
         List<PropertyRecord> props = List.of(valid, invalid);
         List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(props);
         assertEquals(1, merged.size(),
-                "Same owner + adjacency => merges to 1, ignoring invalid geometry.");
+                "Same owner => forcibly merges to 1; ignoring invalid WKT for adjacency.");
 
         Geometry finalGeom = WKT_READER.read(merged.get(0).getGeometry());
-        assertEquals(1.0, finalGeom.getArea(), 0.0001,
-                "Union ignoring invalid geometry => just the valid area=1.0");
+        assertEquals(1.0, finalGeom.getArea(), 1e-4,
+                "Should be just the valid polygon’s area=1.0, ignoring the invalid geometry.");
     }
 
     /**
-     * Tests empty or null inputs. Expect empty results with no exceptions.
+     * Null or empty input yields an empty list without errors.
      */
     @Test
-    @Order(31)
+    @Order(35)
     void testEmptyOrNullInput() {
         assertTrue(PropertyUtils.mergeAdjacentPropertiesSameOwner(new ArrayList<>()).isEmpty(),
-                "Empty list => no merges => empty result.");
+                "Empty input => empty result.");
         assertTrue(PropertyUtils.mergeAdjacentPropertiesSameOwner(null).isEmpty(),
-                "Null => empty result (code checks for null/empty).");
+                "Null input => empty result.");
     }
 
     /**
-     * Single property => no adjacency, so same single property is returned.
+     * A single property cannot be merged with anything; it remains unchanged.
      */
     @Test
-    @Order(32)
+    @Order(36)
     void testSinglePropertyNoMerge() {
         PropertyRecord single = new PropertyRecord(
                 601, 5000L, 6001L, 4.0, 2.0,
@@ -764,69 +709,61 @@ public class PropertyUtilsTest {
                 999, "SoloParish", "SoloMunicipality", "SoloIsland");
         List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(List.of(single));
         assertEquals(1, merged.size(),
-                "Single property => no merges => one item remains.");
+                "Single property => no merges => returns same property.");
         assertSame(single, merged.get(0),
-                "Should return the exact same property instance.");
+                "Should return the same instance if there's nothing else to merge with.");
     }
 
+    /**
+     * Valid geometry plus invalid geometry with same owner => forcibly merges,
+     * adopting largest's ID but area from the valid geometry only.
+     */
     @Test
-    @Order(33)
+    @Order(37)
     void testMergeSameOwnerOneInvalidFarAway() throws Exception {
         // Property A: valid geometry at (0..1,0..1), owner=77
         PropertyRecord validFarLeft = new PropertyRecord(
-                700,       // objectID
-                700L,      // parcelID
-                700L,      // parcelNumber
-                0.0,       // shapeLength placeholder
-                1.0,       // shapeArea placeholder
+                700,
+                700L,
+                700L,
+                0.0,
+                1.0,
                 "POLYGON((0 0,1 0,1 1,0 1,0 0))",
-                77,        // same owner
+                77,
                 "ParishZ", "MunicipalityZ", "IslandZ"
         );
 
-        // Property B: invalid WKT, physically we'd consider it at (10..11,10..11),
-        // but the geometry won't parse => invalid. Same owner=77 => forced merge.
+        // Property B: invalid geometry, shapeArea=9.0 => largest.
+        // They share the same owner => forced adjacency => merges
         PropertyRecord invalidFarRight = new PropertyRecord(
                 701,
                 701L,
                 701L,
                 0.0,
-                9.0,         // bigger shapeArea to see who is "largest"
+                9.0,
                 "NOT_VALID_WKT",
-                77,          // same owner => forced adjacency if invalid
+                77,
                 "ParishZ", "MunicipalityZ", "IslandZ"
         );
 
         List<PropertyRecord> props = List.of(validFarLeft, invalidFarRight);
-
         List<PropertyRecord> merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(props);
-        assertEquals(1, merged.size(),
-                "Despite being far apart (if both were valid), they must forcibly merge because one WKT is invalid and owners match.");
 
-        // In your method, you pick the property with the "largest shapeArea" as the final metadata.
-        // invalidFarRight has shapeArea=9.0 vs validFarLeft=1.0 => "largest" is invalidFarRight => objectID=701
+        assertEquals(1, merged.size(),
+                "Both same owner => forcibly one merged property.");
         PropertyRecord result = merged.get(0);
         assertEquals(701, result.getObjectID(),
-                "Should adopt the largest property’s ID (invalidFarRight) after merge, since shapeArea=9.0 > 1.0.");
+                "Should adopt objectID from the largest property (shapeArea=9).");
 
-        // The code attempts to union the geometry of each.
-        // For invalid geometry, parse fails => unionGeom remains from the valid geometry only.
-        // So the final shape should be the valid polygon’s area=1.0,
-        // but we keep the metadata from 'largest' property => objectID=701, shapeArea=???
-        // Let's confirm your method sets shapeArea to unioned geometry area.
-        // The union geometry is just the one valid polygon => area=1.0.
-
+        // But actual union geometry is only from the valid polygon => area=1.0
         double finalArea = result.getShapeArea();
-        assertEquals(1.0, finalArea, 0.0001,
-                "Union must be just the valid polygon, so final area=1.0 even though largest had area=9.0 initially.");
+        assertEquals(1.0, finalArea, 1e-4,
+                "Union excludes invalid geometry => final area=1.0.");
 
-        // Confirm the geometry is that single polygon as a MULTIPOLYGON
-        org.locationtech.jts.geom.Geometry unionGeom =
-                new org.locationtech.jts.io.WKTReader().read(result.getGeometry());
+        Geometry unionGeom = new WKTReader().read(result.getGeometry());
         assertTrue(unionGeom.getGeometryType().contains("MultiPolygon"),
-                "Should be a MultiPolygon in final WKT if it was originally one polygon or forced multi.");
-        assertEquals(1.0, unionGeom.getArea(), 0.0001,
-                "Again, area=1.0 from the single valid geometry, ignoring the invalid one.");
+                "Should be MultiPolygon if forcibly merged with at least one valid geometry.");
+        assertEquals(1.0, unionGeom.getArea(), 1e-4,
+                "Again, area=1.0 from the single valid geometry.");
     }
-
 }

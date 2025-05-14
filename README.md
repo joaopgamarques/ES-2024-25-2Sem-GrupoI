@@ -90,32 +90,19 @@ All dependencies are managed via **Maven**. You’ll find them in the [pom.xml](
 
 ## Planned / Partially Implemented Features
 
-1. **Property Merging**
-    - We now have a `PropertyMerger` class that unifies contiguous parcels (same owner + adjacent).
-    - Not yet fully integrated into all workflows or the UI.
-    - Future work: hooking it into the main application flows.
-
-2. **Swap Suggestions**
-    - A new `PropertySwapAdvisor` class identifies property pairs (with different owners) that have similar areas and comparable distances to major landmarks (Funchal / Machico).
-    - Currently tested with an example adjacency graph.
-    - Future improvements:
-        - Possibly integrate more metrics (e.g., price, infra quality).
-        - Provide a user interface for selecting thresholds, printing detailed results, etc.
+1. **Swap Suggestions**
+    - Current logic considers area plus distances to Funchal and Machico.
+    - Future expansions could incorporate additional metrics (e.g., **price**, **population density**) to enrich the swap scoring mechanism.
+    - Threshold-based approaches and scoring heuristics are partially integrated but not yet extensively tested.
 
 ---
 
 ## Known Issues & Incomplete Features
 
-- **Graph Construction**
-    - The basic `Graph` class uses O(N²) adjacency checks. For large datasets, a more efficient approach (like the STRtree in `PropertyGraph`) is recommended.
-
-- **Integration with Main**
-    - While `PropertyMerger` and `PropertySwapAdvisor` exist, they’re not yet deeply integrated into the main demonstration code or UI flows.
-    - The merging/swap steps can be called manually or from inside `main`, but a polished interface is still pending.
-
 - **Tests**
-    - Some integration tests remain to be expanded, especially around combining property merges and swap suggestions in a single pipeline.
-    - The “distance to Funchal / Machico” logic requires you to set up reference properties (#11074 / #11517) in `App`. This can lead to `NaN` in tests if not done.
+    - We have robust unit tests for adjacency checks, property merges, and distance calculations.
+    - However, integration tests involving both **merging** and **swap suggestions** in a single pipeline remain to be expanded.
+    - Large-scale performance testing and stress tests on bigger datasets are also areas for future improvement.
 
 ### Usage & Testing
 
@@ -123,6 +110,30 @@ All dependencies are managed via **Maven**. You’ll find them in the [pom.xml](
 - For **database** operations, the `main(...)` in **`PostGISUtils`** (or a dedicated demo class) shows how to import data into PostGIS, run spatial queries, measure distances, union, and so forth.
 
 ---
+
+## Build & Run Instructions
+
+> **Repository:** <https://github.com/joaopgamarques/ES-2024-25-2Sem-GrupoI>
+
+### 1. Clone & Build
+```bash
+git clone https://github.com/joaopgamarques/ES-2024-25-2Sem-GrupoI.git
+cd ES-2024-25-2Sem-GrupoI
+mvn clean install
+```
+
+### 2. Run All Tests + Coverage & Static Analysis
+```bash
+mvn clean install site
+```
+After the build finishes you can open the following reports locally:
+
+| Report                | Purpose                  | Path                            |
+| :-------------------- | :----------------------- | :------------------------------ |
+| **JaCoCo (Coverage)** | Unit-test coverage       | `target/site/jacoco/index.html` |
+| **PMD**               | Code-quality rules       | `target/reports/pmd.html`       |
+| **SpotBugs**          | Bug-pattern detection    | `target/site/spotbugs.html`     |
+| **CPD**               | Copy-and-paste detection | `target/reports/cpd.html`       |
 
 ## Group Identification
 

@@ -4,7 +4,8 @@ A software application to **manage and optimize property data** in Portugal, fea
 
 - **Graph-Based Adjacency Checks**
 - **Owner-Adjacency Graph** (owners connected if they have adjacent parcels)
-- **Property Merging** (planned)
+- **Property Merging** (partially implemented)
+- **Swap Suggestions** (partially implemented — uses area + distance to Funchal + distance to Machico)
 - **Average Area Calculations**
 - **Exports to Gephi** for advanced visualization
 - **PostGIS Integration** for advanced spatial queries
@@ -13,7 +14,7 @@ A software application to **manage and optimize property data** in Portugal, fea
 
 ## Overview
 
-This project focuses on analyzing and improving **territorial management** by loading, processing, and visualizing property records. You can **import CSV** data (e.g., `Madeira-Moodle-1.1.csv`) into various graph structures to detect adjacency, explore ownership patterns, and ultimately propose land swaps or merges to optimize property usage.
+This project focuses on analyzing and improving **territorial management** by loading, processing, and visualizing property records. You can **import CSV** data (e.g., `Madeira-Moodle-1.2.csv`) into various graph structures to detect adjacency, explore ownership patterns, and ultimately propose land swaps or merges to optimize property usage.
 
 ---
 
@@ -27,7 +28,7 @@ This project focuses on analyzing and improving **territorial management** by lo
     - Immutable model class holding property attributes (objectID, parcelID, geometry, owner, parish, etc.).
 
 3. **`PropertyUtils`**
-    - Static methods for filtering, adjacency checks, grouping, and other property-related utilities (e.g. computing average areas).
+    - Static methods for filtering, adjacency checks, grouping, merges, and other property-related utilities (e.g., computing average areas, distance to Funchal/Machico).
 
 4. **`GeometryUtils`**
     - Handles low-level geometry operations (parsing WKT, creating envelopes, checking adjacency) via **LocationTech JTS**.
@@ -50,15 +51,26 @@ This project focuses on analyzing and improving **territorial management** by lo
 
 9. **`Graph`**
     - A simpler adjacency-list approach, linking `PropertyRecord` nodes if they share a boundary.
-    - Currently uses an O(N²) check; future improvements may include spatial indexing.
+    - Currently uses an O(N²) check; `PropertyGraph` is recommended for larger datasets.
 
 10. **`PostGISUtils`**
-- Provides **PostGIS** functionality to insert, query, and manipulate parcel geometry in a PostgreSQL/PostGIS database:
-    - **Bulk Insert** (`insertPropertyRecords`) for reading CSV-derived records into the DB.
-    - **Spatial Relationship Queries** (`findTouching`, `findIntersecting`, `findOverlapping`, `findContained`).
-    - **Union & Intersection** (`unionByOwner`, `intersection`) to merge or compute intersecting geometries.
-    - **Distance & Proximity** (`distance`, `withinDistance`) for measuring how close parcels are.
-    - **Area & Centroid** (`area`, `centroid`) to compute parcel surface area and the WKT centroid.
+    - Provides **PostGIS** functionality to insert, query, and manipulate parcel geometry in a PostgreSQL/PostGIS database:
+        - **Bulk Insert** (`insertPropertyRecords`) for reading CSV-derived records into the DB.
+        - **Spatial Relationship Queries** (`findTouching`, `findIntersecting`, `findOverlapping`, `findContained`).
+        - **Union & Intersection** (`unionByOwner`, `intersection`) to merge or compute intersecting geometries.
+        - **Distance & Proximity** (`distance`, `withinDistance`) for measuring how close parcels are.
+        - **Area & Centroid** (`area`, `centroid`) to compute parcel surface area and the WKT centroid.
+
+11. **`PropertyMerger`**
+    - Merges properties **owned by the same owner** if they are spatially adjacent.
+    - Returns a new list of “merged” records, each representing one connected component.
+
+12. **`PropertySwapAdvisor`**
+    - Suggests **potential swaps** among merged properties from **different** owners, taking into account:
+        - **Area similarity** (80% weight)
+        - **Distance to Funchal** (15% weight)
+        - **Distance to Machico** (5% weight)
+    - Produces a score for each swap, sorted descending.
 
 ---
 
@@ -76,37 +88,39 @@ All dependencies are managed via **Maven**. You’ll find them in the [pom.xml](
 
 ---
 
-## Planned Features
+## Planned / Partially Implemented Features
 
-1. **Property Merging**  
-   Combine contiguous parcels owned by the same owner into a larger, single record.
+1. **Property Merging**
+    - We now have a `PropertyMerger` class that unifies contiguous parcels (same owner + adjacent).
+    - Not yet fully integrated into all workflows or the UI.
+    - Future work: hooking it into the main application flows.
 
-2. **Swap Suggestions**  
-   Identify potential property exchanges between owners to maximize the average property area per owner.
+2. **Swap Suggestions**
+    - A new `PropertySwapAdvisor` class identifies property pairs (with different owners) that have similar areas and comparable distances to major landmarks (Funchal / Machico).
+    - Currently tested with an example adjacency graph.
+    - Future improvements:
+        - Possibly integrate more metrics (e.g., price, infra quality).
+        - Provide a user interface for selecting thresholds, printing detailed results, etc.
 
 ---
 
 ## Known Issues & Incomplete Features
 
-- **Graph Construction**  
-  The `Graph` class uses O(N²) adjacency checks. For large datasets, a more efficient approach (e.g., an R-tree) would be needed. The `PropertyGraph` does support STRtree, but might still require performance tuning for very large data.
+- **Graph Construction**
+    - The basic `Graph` class uses O(N²) adjacency checks. For large datasets, a more efficient approach (like the STRtree in `PropertyGraph`) is recommended.
 
-- **Property Merging**  
-  Not fully integrated yet; geometry-based merging logic remains a placeholder.
+- **Integration with Main**
+    - While `PropertyMerger` and `PropertySwapAdvisor` exist, they’re not yet deeply integrated into the main demonstration code or UI flows.
+    - The merging/swap steps can be called manually or from inside `main`, but a polished interface is still pending.
 
-- **Swap Suggestions**  
-  Algorithmic design is still in progress; not implemented yet. Will consider property areas plus 2+ characteristics.
-
-- **Tests**  
-  Some integration tests (involving both geometry checks and adjacency) remain to be expanded.  
-  Additional unit tests for edge cases are on the roadmap.
+- **Tests**
+    - Some integration tests remain to be expanded, especially around combining property merges and swap suggestions in a single pipeline.
+    - The “distance to Funchal / Machico” logic requires you to set up reference properties (#11074 / #11517) in `App`. This can lead to `NaN` in tests if not done.
 
 ### Usage & Testing
 
-- The `main(...)` method in **`PostGISReader`** offers an interactive console demo for:
-    - Loading CSV data once to populate your PostGIS table.
-    - Querying neighbors, checking overlaps, distances, areas, centroids, etc.
-    - Demonstrates end-to-end DB integration with minimal code changes.
+- In general, the `main(...)` method in **`App`** demonstrates CSV loading, building graphs, listing neighbors, merging, and a basic call to `PropertySwapAdvisor.suggestSwaps()`.
+- For **database** operations, the `main(...)` in **`PostGISUtils`** (or a dedicated demo class) shows how to import data into PostGIS, run spatial queries, measure distances, union, and so forth.
 
 ---
 

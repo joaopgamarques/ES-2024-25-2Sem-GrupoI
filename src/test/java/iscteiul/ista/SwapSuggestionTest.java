@@ -100,8 +100,8 @@ public class SwapSuggestionTest {
 
         // Assert
         // We expect the string to contain certain key identifiers:
-        assertTrue(result.contains("Prop 201 (owner=111)"), "toString() should include the first property info");
-        assertTrue(result.contains("Prop 202 (owner=222)"), "toString() should include the second property info");
+        assertTrue(result.contains("Property 201 (owner=111)"), "toString() should include the first property info");
+        assertTrue(result.contains("Property 202 (owner=222)"), "toString() should include the second property info");
         assertTrue(result.contains("benefit=0.700"),       "toString() should include benefit");
         assertTrue(result.contains("cost=0.300"),          "toString() should include cost");
         assertTrue(result.contains("score=0.800"),         "toString() should include score");

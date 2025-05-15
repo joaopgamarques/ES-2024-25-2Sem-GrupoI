@@ -123,6 +123,7 @@ public final class App {
         CSVFileReader csvFileReader = new CSVFileReader();
         propertyRecords = csvFileReader.importData("/Madeira-Moodle-1.2.csv");
         logger.info("Total records loaded: {}", propertyRecords.size());
+        propertyRecords.removeIf(pr -> pr.getParish() == null || pr.getParish().isBlank());
 
         // 1a. Print distinct parishes and municipalities.
         Set<String> distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);
@@ -175,7 +176,7 @@ public final class App {
         List<PropertyRecord> parishProperties = PropertyUtils.findByParish(propertyRecords, chosenParish);
         double averageArea = PropertyUtils.calculateAverageArea(parishProperties);
         logger.info("Records in parish '{}': {}", chosenParish, parishProperties.size());
-        logger.info("Average area (no adjacency grouping) in parish '{}': {}", chosenParish, averageArea);
+        logger.info("Average area (no adjacency grouping) in '{}' [ha]: {}", chosenParish, String.format("%.2f", averageArea));
 
         // 3. Build the custom (O(N²)) Graph from the parish subset.
         Graph propertyGraph = new Graph(parishSubset);
@@ -188,16 +189,19 @@ public final class App {
 
         // 4a. For each property in parishSubset, print its neighbors
         for (PropertyRecord record : parishSubset) {
-            int objID = record.getObjectID();
-            List<Graph.GraphNode> neighbors = propertyGraph.getNeighbors(objID);
+            int objectID = record.getObjectID();
+            List<Graph.GraphNode> neighbors = propertyGraph.getNeighbors(objectID);
             if (neighbors.isEmpty()) {
-                System.out.println("Property objectID=" + objID + " has no neighbors (in this parish).");
+                System.out.println("Property ID=" + objectID
+                                + ", Area [ha]=" + String.format("%.2f", record.getShapeArea())
+                                + ", Owner=" + record.getOwner() + " has no neighbors.");
             } else {
-                System.out.println("Neighbors of property objectID=" + objID + ":");
+                System.out.println("Neighbors of Property ID=" + objectID
+                        + ", Area [ha]=" + String.format("%.2f", record.getShapeArea()) + ", Owner=" + record.getOwner() + ":");
                 for (Graph.GraphNode neighbor : neighbors) {
                     System.out.println("  -> objectID=" + neighbor.getObjectID()
-                            + ", area=" + neighbor.getShapeArea()
-                            + ", owner=" + neighbor.getOwner());
+                            + ", Area [ha]=" + String.format("%.2f", neighbor.getShapeArea())
+                            + ", Owner=" + neighbor.getOwner());
                 }
             }
         }
@@ -220,15 +224,15 @@ public final class App {
                 double cy = centroid.getY();
 
                 logger.info("Selected node attributes:");
-                logger.info(" -> objectID      = {}", randomProperty.getObjectID());
-                logger.info(" -> parcelID      = {}", randomProperty.getParcelID());
-                logger.info(" -> shapeLength   = {}", randomProperty.getShapeLength());
-                logger.info(" -> shapeArea     = {}", randomProperty.getShapeArea());
-                logger.info(" -> owner         = {}", randomProperty.getOwner());
-                logger.info(" -> parish        = {}", randomProperty.getParish());
-                logger.info(" -> municipality  = {}", randomProperty.getMunicipality());
-                logger.info(" -> island        = {}", randomProperty.getIsland());
-                logger.info(" -> centroid      = ({}, {})", cx, cy);
+                logger.info(" -> Object ID      = {}", randomProperty.getObjectID());
+                logger.info(" -> Parcel ID      = {}", randomProperty.getParcelID());
+                logger.info(" -> Perimeter [km] = {}", randomProperty.getShapeLength());
+                logger.info(" -> Area [ha]      = {}", randomProperty.getShapeArea());
+                logger.info(" -> Owner          = {}", randomProperty.getOwner());
+                logger.info(" -> Parish         = {}", randomProperty.getParish());
+                logger.info(" -> Municipality   = {}", randomProperty.getMunicipality());
+                logger.info(" -> Island         = {}", randomProperty.getIsland());
+                logger.info(" -> Centroid       = ({}, {})", cx, cy);
 
             } catch (ParseException e) {
                 logger.warn("Failed to parse WKT for objectID={}: {}",
@@ -263,9 +267,10 @@ public final class App {
         // 8a. Calculate the average area of properties grouped by owner.
         org.jgrapht.Graph<PropertyRecord, DefaultEdge> jgtGraph = propertyGraphJgt.getGraph();
         double averageGroupedArea = PropertyUtils.calculateAverageGroupedArea(parishSubset, jgtGraph);
-        System.out.println("Average area of properties in parish (grouped by owner): " + averageGroupedArea);
+        System.out.println("Average area of properties in parish (grouped by owner) [ha]: " + String.format("%.2f",averageGroupedArea));
         if (averageArea != averageGroupedArea) {
-            System.out.println("These averages differ: " + averageArea + " vs " + averageGroupedArea);
+            System.out.println("These averages differ: " + String.format("%.2f",averageArea) + " ha" + " vs "
+                    + String.format("%.2f",averageGroupedArea) + " ha");
         }
 
         // 8b. Demonstrate merging adjacent properties that belong to the same owner, within this parish subset.
@@ -325,9 +330,9 @@ public final class App {
         System.out.println("Original subset size: " + parishSubset.size());
         System.out.println("Merged subset size: " + merged.size());
         for (PropertyRecord mp : merged) {
-            System.out.println("Merged property => ID=" + mp.getObjectID()
-                    + ", area=" + mp.getShapeArea()
-                    + ", geometry=" + mp.getGeometry().substring(0, Math.min(60, mp.getGeometry().length())) + "...");
+            System.out.println("Merged property => Object ID=" + mp.getObjectID()
+                    + ", Area [ha]=" + mp.getShapeArea()
+                    + ", Geometry=" + mp.getGeometry().substring(0, Math.min(60, mp.getGeometry().length())) + "...");
         }
     }
 }

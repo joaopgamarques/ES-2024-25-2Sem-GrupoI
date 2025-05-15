@@ -114,7 +114,7 @@ public class SwapSuggestion {
     @Override
     public String toString() {
         return String.format(
-                "SwapSuggestion: [Prop %d (owner=%d), Prop %d (owner=%d)] => benefit=%.3f, cost=%.3f, score=%.3f",
+                "SwapSuggestion: [Property %d (owner=%d), Property %d (owner=%d)] => benefit=%.3f, cost=%.3f, score=%.3f",
                 p1.getObjectID(), p1.getOwner(), p2.getObjectID(), p2.getOwner(),
                 benefit, cost, score
         );

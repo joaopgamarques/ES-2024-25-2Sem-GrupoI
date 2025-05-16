@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeometryUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">GeometryUtils.java</span></div><h1>GeometryUtils.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.WKTReader;
+import org.locationtech.jts.io.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A utility class for parsing WKT geometry strings and checking spatial relationships using JTS.
+ * &lt;p&gt;
+ * This class focuses on simple checks such as adjacency (touch), intersection, and disjoint
+ * on WKT (Well-Known Text) polygons, multipolygons, etc. It relies on the LocationTech JTS
+ * library for parsing and geometric operations. All parse errors are logged via SLF4J.
+ */
+public final class GeometryUtils {
+
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     *
+     * @throws AssertionError always, because this constructor should never be called.
+     */
+<span class="nc" id="L24">    private GeometryUtils() {</span>
+<span class="nc" id="L25">        throw new AssertionError(&quot;Utility class - do not instantiate.&quot;);</span>
+    }
+
+    /**
+     * SLF4J logger for this class, used for reporting parsing failures and debug info.
+     */
+<span class="fc" id="L31">    private static final Logger logger = LoggerFactory.getLogger(GeometryUtils.class);</span>
+
+    /**
+     * A shared WKTReader to parse WKT strings into JTS {@link Geometry} objects.
+     */
+<span class="fc" id="L36">    private static final WKTReader WKT_READER = new WKTReader();</span>
+
+    /**
+     * Determines if two geometries (in WKT form) &quot;touch&quot; each other. &quot;Touching&quot; means they
+     * share a boundary but do not overlap in their interior.
+     * &lt;p&gt;
+     * Example usage: if two multipolygons share only an edge or a point (but no overlapping area),
+     * {@code areAdjacent} returns true.
+     *
+     * @param wktA the WKT representation of geometry A
+     * @param wktB the WKT representation of geometry B
+     * @return {@code true} if they share a boundary without overlapping interior points,
+     *         {@code false} otherwise (including if either WKT is null or invalid).
+     */
+    public static boolean areAdjacent(String wktA, String wktB) {
+<span class="pc bpc" id="L51" title="1 of 4 branches missed.">        if (wktA == null || wktB == null) {</span>
+<span class="fc" id="L52">            logger.warn(&quot;One or both WKT strings are null. Cannot determine adjacency.&quot;);</span>
+<span class="fc" id="L53">            return false;</span>
+        }
+        try {
+<span class="fc" id="L56">            Geometry geometryA = WKT_READER.read(wktA);</span>
+<span class="fc" id="L57">            Geometry geometryB = WKT_READER.read(wktB);</span>
+<span class="fc" id="L58">            return geometryA.touches(geometryB);</span>
+<span class="fc" id="L59">        } catch (ParseException e) {</span>
+<span class="fc" id="L60">            logger.error(&quot;Error parsing WKT in areAdjacent: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L61">            return false;</span>
+        }
+    }
+
+    /**
+     * Checks if two WKT geometries intersect in any way (their boundaries or interiors overlap).
+     * &lt;p&gt;
+     * In JTS terms, this is equivalent to calling {@code geometryA.intersects(geometryB)}.
+     * Any shared point will result in {@code true}, including mere boundary contacts
+     * (which also yields {@code true}).
+     *
+     * @param wktA the WKT representation of geometry A
+     * @param wktB the WKT representation of geometry B
+     * @return {@code true} if there's any intersection, {@code false} otherwise.
+     */
+    public static boolean doIntersect(String wktA, String wktB) {
+<span class="pc bpc" id="L77" title="1 of 4 branches missed.">        if (wktA == null || wktB == null) {</span>
+<span class="fc" id="L78">            logger.warn(&quot;One or both WKT strings are null. Cannot determine intersection.&quot;);</span>
+<span class="fc" id="L79">            return false;</span>
+        }
+        try {
+<span class="fc" id="L82">            Geometry geometryA = WKT_READER.read(wktA);</span>
+<span class="fc" id="L83">            Geometry geometryB = WKT_READER.read(wktB);</span>
+<span class="fc" id="L84">            return geometryA.intersects(geometryB);</span>
+<span class="fc" id="L85">        } catch (ParseException e) {</span>
+<span class="fc" id="L86">            logger.error(&quot;Error parsing WKT in doIntersect: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L87">            return false;</span>
+        }
+    }
+
+    /**
+     * Determines if two WKT geometries are completely disjoint, meaning they have no
+     * boundary or interior points in common.
+     *
+     * @param wktA the WKT representation of geometry A
+     * @param wktB the WKT representation of geometry B
+     * @return {@code true} if they share no common points at all; {@code false} otherwise.
+     */
+    public static boolean areDisjoint(String wktA, String wktB) {
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">        if (wktA == null || wktB == null) {</span>
+<span class="fc" id="L101">            logger.warn(&quot;One or both WKT strings are null. Cannot determine disjoint status.&quot;);</span>
+<span class="fc" id="L102">            return false;</span>
+        }
+        try {
+<span class="fc" id="L105">            Geometry geometryA = WKT_READER.read(wktA);</span>
+<span class="fc" id="L106">            Geometry geometryB = WKT_READER.read(wktB);</span>
+<span class="fc" id="L107">            return geometryA.disjoint(geometryB);</span>
+<span class="fc" id="L108">        } catch (ParseException e) {</span>
+<span class="fc" id="L109">            logger.error(&quot;Error parsing WKT in areDisjoint: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L110">            return false;</span>
+        }
+    }
+
+    /**
+     * Returns the bounding box (an {@link Envelope}) of the geometry represented by the given WKT string.
+     * &lt;p&gt;
+     * If parsing fails for any reason (including null or invalid WKT), an &lt;em&gt;empty&lt;/em&gt; {@link Envelope}
+     * is returned, rather than throwing an exception. This bounding box can be used in spatial indexing
+     * to quickly query potential adjacencies or overlaps.
+     *
+     * @param wkt the WKT representation of the geometry
+     * @return the bounding box of the geometry as an {@link Envelope}, or an empty envelope if parsing fails.
+     */
+    public static Envelope getEnvelope(String wkt) {
+        try {
+<span class="fc" id="L126">            Geometry geometry = WKT_READER.read(wkt);</span>
+<span class="fc" id="L127">            return geometry.getEnvelopeInternal();</span>
+<span class="fc" id="L128">        } catch (ParseException e) {</span>
+            // For consistency with other methods, we could log this as well:
+<span class="fc" id="L130">            logger.warn(&quot;Failed to parse WKT in getEnvelope. Returning an empty Envelope. Reason: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L131">            return new Envelope();  // Returns an empty envelope if parsing fails</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

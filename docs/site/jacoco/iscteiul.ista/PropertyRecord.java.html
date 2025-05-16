@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PropertyRecord.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">PropertyRecord.java</span></div><h1>PropertyRecord.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+/**
+ * Represents an immutable record of a property, including its geometry, area, ownership,
+ * and location details (parish, municipality, island).
+ * &lt;p&gt;
+ * This class is typically instantiated from parsed CSV data. All fields are declared
+ * {@code final}, ensuring that once a {@code PropertyRecord} is created, its values
+ * cannot be changed.
+ */
+public class PropertyRecord {
+
+    /** Unique ID of the property record. */
+    private final int objectID;
+
+    /** Identifier for the parcel. */
+    private final long parcelID;
+
+    /** A secondary parcel number or code. */
+    private final long parcelNumber;
+
+    /** The length of the property's shape. */
+    private final double shapeLength;
+
+    /** The area of the property. */
+    private final double shapeArea;
+
+    /** A geometry string (e.g., WKT) representing the property's shape. */
+    private final String geometry;
+
+    /** An integer representing the owner code or ID. */
+    private final int owner;
+
+    /** The parish (freguesia) name, or {@code null} if &quot;NA&quot; in the CSV. */
+    private final String parish;
+
+    /** The municipality name, or {@code null} if &quot;NA&quot; in the CSV. */
+    private final String municipality;
+
+    /** The island name, or {@code null} if &quot;NA&quot; in the CSV. */
+    private final String island;
+
+    /**
+     * Constructs an immutable {@code PropertyRecord} with all required fields.
+     *
+     * @param objectID      the unique object identifier (column 0)
+     * @param parcelID      the primary parcel ID, possibly parsed from scientific notation (column 1)
+     * @param parcelNumber  a secondary parcel code or number (column 2)
+     * @param shapeLength   the length of the property's shape (column 3)
+     * @param shapeArea     the area of the property (column 4)
+     * @param geometry      a geometry representation (e.g., WKT) for the property's boundaries (column 5)
+     * @param owner         an integer representing the owner code or ID (column 6)
+     * @param parish        the parish (freguesia) name, or {@code null} if &quot;NA&quot; (column 7)
+     * @param municipality  the municipality name, or {@code null} if &quot;NA&quot; (column 8)
+     * @param island        the island name, or {@code null} if &quot;NA&quot; (column 9)
+     */
+    public PropertyRecord(int objectID, long parcelID, long parcelNumber, double shapeLength, double shapeArea,
+<span class="fc" id="L58">                          String geometry, int owner, String parish, String municipality, String island) {</span>
+<span class="fc" id="L59">        this.objectID = objectID;</span>
+<span class="fc" id="L60">        this.parcelID = parcelID;</span>
+<span class="fc" id="L61">        this.parcelNumber = parcelNumber;</span>
+<span class="fc" id="L62">        this.shapeLength = shapeLength;</span>
+<span class="fc" id="L63">        this.shapeArea = shapeArea;</span>
+<span class="fc" id="L64">        this.geometry = geometry;</span>
+<span class="fc" id="L65">        this.owner = owner;</span>
+<span class="fc" id="L66">        this.parish = parish;</span>
+<span class="fc" id="L67">        this.municipality = municipality;</span>
+<span class="fc" id="L68">        this.island = island;</span>
+<span class="fc" id="L69">    }</span>
+
+    /**
+     * Returns the unique object ID for this property record.
+     *
+     * @return the object ID
+     */
+    public int getObjectID() {
+<span class="fc" id="L77">        return objectID;</span>
+    }
+
+    /**
+     * Returns the primary parcel ID.
+     *
+     * @return the parcel ID
+     */
+    public long getParcelID() {
+<span class="fc" id="L86">        return parcelID;</span>
+    }
+
+    /**
+     * Returns the secondary parcel number or code.
+     *
+     * @return the parcel number
+     */
+    public long getParcelNumber() {
+<span class="fc" id="L95">        return parcelNumber;</span>
+    }
+
+    /**
+     * Returns the length of the property's shape.
+     *
+     * @return the shape length
+     */
+    public double getShapeLength() {
+<span class="fc" id="L104">        return shapeLength;</span>
+    }
+
+    /**
+     * Returns the area of the property.
+     *
+     * @return the shape area
+     */
+    public double getShapeArea() {
+<span class="fc" id="L113">        return shapeArea;</span>
+    }
+
+    /**
+     * Returns a geometry string (e.g., WKT) representing the property boundaries.
+     *
+     * @return the geometry string
+     */
+    public String getGeometry() {
+<span class="fc" id="L122">        return geometry;</span>
+    }
+
+    /**
+     * Returns the owner code or ID for this property.
+     *
+     * @return the owner code
+     */
+    public int getOwner() {
+<span class="fc" id="L131">        return owner;</span>
+    }
+
+    /**
+     * Returns the parish (freguesia) name, or {@code null} if it was &quot;NA&quot; in the CSV.
+     *
+     * @return the parish name, or null
+     */
+    public String getParish() {
+<span class="fc" id="L140">        return parish;</span>
+    }
+
+    /**
+     * Returns the municipality name, or {@code null} if it was &quot;NA&quot; in the CSV.
+     *
+     * @return the municipality name, or null
+     */
+    public String getMunicipality() {
+<span class="fc" id="L149">        return municipality;</span>
+    }
+
+    /**
+     * Returns the island name, or {@code null} if it was &quot;NA&quot; in the CSV.
+     *
+     * @return the island name, or null
+     */
+    public String getIsland() {
+<span class="fc" id="L158">        return island;</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L163">        return &quot;PropertyRecord{&quot; + &quot;objectID=&quot; + objectID + &quot;, parcelID=&quot; + parcelID + &quot;, parcelNumber=&quot; + parcelNumber +</span>
+                &quot;, shapeLength=&quot; + shapeLength + &quot;, shapeArea=&quot; + shapeArea + &quot;, geometry='&quot; + geometry + '\'' +
+                &quot;, owner=&quot; + owner + &quot;, parish='&quot; + parish + '\'' + &quot;, municipality='&quot; + municipality + '\'' +
+                &quot;, island='&quot; + island + '\'' + '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

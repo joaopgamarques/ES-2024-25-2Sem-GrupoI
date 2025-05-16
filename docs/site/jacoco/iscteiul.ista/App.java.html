@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>App.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">App.java</span></div><h1>App.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * The main entry point of the ES-Project-TerritoryManagement application.
+ */
+public final class App {
+
+    /**
+     * SLF4J logger for the App class.
+     */
+<span class="fc" id="L25">    private static final Logger logger = LoggerFactory.getLogger(App.class);</span>
+
+    /**
+     * A private static list storing all {@link PropertyRecord} objects loaded
+     * from the CSV (e.g. &quot;/Madeira-Moodle-1.2.csv&quot;). This allows other methods
+     * within {@code App} to access the full dataset, while preventing external
+     * classes from directly modifying it.
+     *
+     * &lt;p&gt;We assign this list once in {@link #main(String[])} after reading the CSV,
+     * and it remains available for the lifetime of the application.&lt;/p&gt;
+     */
+<span class="fc" id="L36">    private static List&lt;PropertyRecord&gt; propertyRecords = null;</span>
+
+    /**
+     * Private static reference to the #11074 property, once loaded.
+     * We'll assign it in main() after reading from CSV. Other classes
+     * can read it via {@link #getFunchalPropertyRecord()} but cannot overwrite it.
+     */
+<span class="fc" id="L43">    private static PropertyRecord funchalPropertyRecord = null;</span>
+
+    /**
+     * Private static reference to the #11517 property, once loaded.
+     * We'll assign it in main() after reading from CSV. Other classes
+     * can read it via {@link #getMachicoPropertyRecord()} but cannot overwrite it.
+     */
+<span class="fc" id="L50">    private static PropertyRecord machicoPropertyRecord = null;</span>
+
+    /**
+     * Provides read-only access to the entire list of {@link PropertyRecord} objects
+     * loaded from the CSV. If the CSV was never read or an error occurred, this might
+     * be {@code null} or an empty list. Callers must not modify this list in place.
+     *
+     * @return the loaded list of PropertyRecord objects, or {@code null} if not yet assigned
+     */
+    public static List&lt;PropertyRecord&gt; getPropertyRecords() {
+<span class="fc" id="L60">        return propertyRecords;</span>
+    }
+
+    /**
+     * Sets the property records list,
+     * so unit tests can simulate different scenarios.
+     */
+    public static void setPropertyRecords(List&lt;PropertyRecord&gt; records) {
+<span class="fc" id="L68">        propertyRecords = records;</span>
+<span class="fc" id="L69">    }</span>
+
+    /**
+     * Provides read-only access to our Funchal Sé reference property.
+     * If #11074 wasn't found in the CSV, this returns null.
+     */
+    public static PropertyRecord getFunchalPropertyRecord() {
+<span class="fc" id="L76">        return funchalPropertyRecord;</span>
+    }
+
+    /**
+     * Sets the Funchal property record (objectID=11074),
+     * so unit tests can simulate different scenarios.
+     */
+    public static void setFunchalPropertyRecord(PropertyRecord record) {
+<span class="fc" id="L84">        funchalPropertyRecord = record;</span>
+<span class="fc" id="L85">    }</span>
+
+    /**
+     * Provides read-only access to our Machico reference property.
+     * If #11517 wasn't found in the CSV, this returns null.
+     */
+    public static PropertyRecord getMachicoPropertyRecord() {
+<span class="fc" id="L92">        return machicoPropertyRecord;</span>
+    }
+
+    /**
+     * Sets the Machico property record (objectID=11517),
+     * so unit tests can simulate different scenarios.
+     */
+    public static void setMachicoPropertyRecord(PropertyRecord record) {
+<span class="fc" id="L100">        machicoPropertyRecord = record;</span>
+<span class="fc" id="L101">    }</span>
+
+    /**
+     * Private constructor to prevent instantiation.
+     * &lt;p&gt;
+     * Since this class is designed to be run from its static {@code main} method
+     * (and contains no instance fields), no objects should ever be created.
+     *
+     * @throws AssertionError always, since instantiation is not allowed
+     */
+<span class="nc" id="L111">    private App() {</span>
+<span class="nc" id="L112">        throw new AssertionError(&quot;Utility class - do not instantiate.&quot;);</span>
+    }
+
+    /**
+     * Main method: loads the CSV, filters by parish, builds a Graph,
+     * picks a random property from the subset, and compares adjacency using two methods.
+     *
+     * @param args command-line arguments (not used)
+     */
+    public static void main(String[] args) {
+        // 1. Read proprieties CSV
+<span class="nc" id="L123">        CSVFileReader csvFileReader = new CSVFileReader();</span>
+<span class="nc" id="L124">        propertyRecords = csvFileReader.importData(&quot;/Madeira-Moodle-1.2.csv&quot;);</span>
+<span class="nc" id="L125">        logger.info(&quot;Total records loaded: {}&quot;, propertyRecords.size());</span>
+<span class="nc bnc" id="L126" title="All 4 branches missed.">        propertyRecords.removeIf(pr -&gt; pr.getParish() == null || pr.getParish().isBlank());</span>
+
+        // 1a. Print distinct parishes and municipalities.
+<span class="nc" id="L129">        Set&lt;String&gt; distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);</span>
+<span class="nc" id="L130">        Set&lt;String&gt; distinctMunicipalities = PropertyUtils.getDistinctMunicipalities(propertyRecords);</span>
+<span class="nc" id="L131">        logger.info(&quot;Distinct Parishes: {}&quot;, distinctParishes);</span>
+<span class="nc" id="L132">        logger.info(&quot;Distinct Municipalities: {}&quot;, distinctMunicipalities);</span>
+
+        // 1b) Find objectID=11074 in the data, copy it into our private static field
+<span class="nc" id="L135">        funchalPropertyRecord = propertyRecords.stream()</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                .filter(pr -&gt; pr.getObjectID() == 11074)</span>
+<span class="nc" id="L137">                .findFirst()</span>
+<span class="nc" id="L138">                .map(original -&gt; new PropertyRecord(original.getObjectID(), original.getParcelID(),</span>
+<span class="nc" id="L139">                        original.getParcelNumber(), original.getShapeLength(), original.getShapeArea(), original.getGeometry(),</span>
+<span class="nc" id="L140">                        original.getOwner(), original.getParish(), original.getMunicipality(), original.getIsland()))</span>
+<span class="nc" id="L141">                .orElse(null);</span>
+
+        // 1c) Find objectID=11517 in the data, copy it into our private static field
+<span class="nc" id="L144">        machicoPropertyRecord = propertyRecords.stream()</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">                .filter(pr -&gt; pr.getObjectID() == 11517)</span>
+<span class="nc" id="L146">                .findFirst()</span>
+<span class="nc" id="L147">                .map(original -&gt; new PropertyRecord(original.getObjectID(), original.getParcelID(),</span>
+<span class="nc" id="L148">                        original.getParcelNumber(), original.getShapeLength(), original.getShapeArea(), original.getGeometry(),</span>
+<span class="nc" id="L149">                        original.getOwner(), original.getParish(), original.getMunicipality(), original.getIsland()))</span>
+<span class="nc" id="L150">                .orElse(null);</span>
+
+        // 1d. Read metrics CSV
+<span class="nc" id="L153">        List&lt;ParishMetrics&gt; metrics = CSVMetricsFileReader.importData();</span>
+<span class="nc" id="L154">        logger.info(&quot;Total metrics loaded: {}&quot;, metrics.size());</span>
+
+        // 1c. Print each parish metric (distance, price, etc.)
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        for (ParishMetrics pm : metrics) {</span>
+<span class="nc" id="L158">            System.out.printf(&quot;%-30s Distance Airport [km]=%.1f | Distance Funchal Sé [km]=%.1f | Price [€/m²]=%.0f | &quot; +</span>
+                            &quot;Population Density [Hab./km²]=%d | Infrastructure Quality Index=%d%n&quot;,
+<span class="nc" id="L160">                    pm.parishName(),</span>
+<span class="nc" id="L161">                    pm.distanceAirportKm(),</span>
+<span class="nc" id="L162">                    pm.distanceFunchalSeKm(),</span>
+<span class="nc" id="L163">                    pm.averagePriceEuroM2(),</span>
+<span class="nc" id="L164">                    pm.populationDensityHabKm2(),</span>
+<span class="nc" id="L165">                    pm.infrastructureQualityIdx());</span>
+<span class="nc" id="L166">        }</span>
+
+        // 2. Filter to a chosen parish.
+<span class="nc" id="L169">        String chosenParish = &quot;Machico&quot;;</span>
+<span class="nc" id="L170">        List&lt;PropertyRecord&gt; parishSubset = propertyRecords.stream()</span>
+<span class="nc" id="L171">                .filter(pr -&gt; chosenParish.equals(pr.getParish()))</span>
+<span class="nc" id="L172">                .collect(Collectors.toList());</span>
+<span class="nc" id="L173">        logger.info(&quot;Records in parish '{}': {}&quot;, chosenParish, parishSubset.size());</span>
+
+        // 2a. Calculate the average area of properties in the chosen parish (no adjacency grouping).
+<span class="nc" id="L176">        List&lt;PropertyRecord&gt; parishProperties = PropertyUtils.findByParish(propertyRecords, chosenParish);</span>
+<span class="nc" id="L177">        double averageArea = PropertyUtils.calculateAverageArea(parishProperties);</span>
+<span class="nc" id="L178">        logger.info(&quot;Records in parish '{}': {}&quot;, chosenParish, parishProperties.size());</span>
+<span class="nc" id="L179">        logger.info(&quot;Average area (no adjacency grouping) in '{}' [ha]: {}&quot;, chosenParish, String.format(&quot;%.2f&quot;, averageArea));</span>
+
+        // 3. Build the custom (O(N²)) Graph from the parish subset.
+<span class="nc" id="L182">        Graph propertyGraph = new Graph(parishSubset);</span>
+
+        // 4. Pick a random PropertyRecord from the subset.
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (parishSubset.isEmpty()) {</span>
+<span class="nc" id="L186">            logger.warn(&quot;No records found in parish '{}'. Exiting.&quot;, chosenParish);</span>
+<span class="nc" id="L187">            return;</span>
+        }
+
+        // 4a. For each property in parishSubset, print its neighbors
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        for (PropertyRecord record : parishSubset) {</span>
+<span class="nc" id="L192">            int objectID = record.getObjectID();</span>
+<span class="nc" id="L193">            List&lt;Graph.GraphNode&gt; neighbors = propertyGraph.getNeighbors(objectID);</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">            if (neighbors.isEmpty()) {</span>
+<span class="nc" id="L195">                System.out.println(&quot;Property ID=&quot; + objectID</span>
+<span class="nc" id="L196">                                + &quot;, Area [ha]=&quot; + String.format(&quot;%.2f&quot;, record.getShapeArea())</span>
+<span class="nc" id="L197">                                + &quot;, Owner=&quot; + record.getOwner() + &quot; has no neighbors.&quot;);</span>
+            } else {
+<span class="nc" id="L199">                System.out.println(&quot;Neighbors of Property ID=&quot; + objectID</span>
+<span class="nc" id="L200">                        + &quot;, Area [ha]=&quot; + String.format(&quot;%.2f&quot;, record.getShapeArea()) + &quot;, Owner=&quot; + record.getOwner() + &quot;:&quot;);</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                for (Graph.GraphNode neighbor : neighbors) {</span>
+<span class="nc" id="L202">                    System.out.println(&quot;  -&gt; objectID=&quot; + neighbor.getObjectID()</span>
+<span class="nc" id="L203">                            + &quot;, Area [ha]=&quot; + String.format(&quot;%.2f&quot;, neighbor.getShapeArea())</span>
+<span class="nc" id="L204">                            + &quot;, Owner=&quot; + neighbor.getOwner());</span>
+<span class="nc" id="L205">                }</span>
+            }
+<span class="nc" id="L207">        }</span>
+
+<span class="nc" id="L209">        Random random = new Random();</span>
+<span class="nc" id="L210">        int randomIndex = random.nextInt(parishSubset.size());</span>
+<span class="nc" id="L211">        PropertyRecord randomProperty = parishSubset.get(randomIndex);</span>
+<span class="nc" id="L212">        int testObjectID = randomProperty.getObjectID();</span>
+
+<span class="nc" id="L214">        logger.info(&quot;Randomly chosen objectID {} from parish '{}'&quot;, testObjectID, chosenParish);</span>
+
+        // 4a. Parse geometry and print centroid + other attributes for just this node.
+<span class="nc" id="L217">        WKTReader wktReader = new WKTReader();</span>
+<span class="nc" id="L218">        String wkt = randomProperty.getGeometry();</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (wkt != null) {</span>
+            try {
+<span class="nc" id="L221">                Geometry geom = wktReader.read(wkt);</span>
+<span class="nc" id="L222">                Point centroid = geom.getCentroid();</span>
+<span class="nc" id="L223">                double cx = centroid.getX();</span>
+<span class="nc" id="L224">                double cy = centroid.getY();</span>
+
+<span class="nc" id="L226">                logger.info(&quot;Selected node attributes:&quot;);</span>
+<span class="nc" id="L227">                logger.info(&quot; -&gt; Object ID      = {}&quot;, randomProperty.getObjectID());</span>
+<span class="nc" id="L228">                logger.info(&quot; -&gt; Parcel ID      = {}&quot;, randomProperty.getParcelID());</span>
+<span class="nc" id="L229">                logger.info(&quot; -&gt; Perimeter [km] = {}&quot;, randomProperty.getShapeLength());</span>
+<span class="nc" id="L230">                logger.info(&quot; -&gt; Area [ha]      = {}&quot;, randomProperty.getShapeArea());</span>
+<span class="nc" id="L231">                logger.info(&quot; -&gt; Owner          = {}&quot;, randomProperty.getOwner());</span>
+<span class="nc" id="L232">                logger.info(&quot; -&gt; Parish         = {}&quot;, randomProperty.getParish());</span>
+<span class="nc" id="L233">                logger.info(&quot; -&gt; Municipality   = {}&quot;, randomProperty.getMunicipality());</span>
+<span class="nc" id="L234">                logger.info(&quot; -&gt; Island         = {}&quot;, randomProperty.getIsland());</span>
+<span class="nc" id="L235">                logger.info(&quot; -&gt; Centroid       = ({}, {})&quot;, cx, cy);</span>
+
+<span class="nc" id="L237">            } catch (ParseException e) {</span>
+<span class="nc" id="L238">                logger.warn(&quot;Failed to parse WKT for objectID={}: {}&quot;,</span>
+<span class="nc" id="L239">                        randomProperty.getObjectID(), e.getMessage());</span>
+<span class="nc" id="L240">            }</span>
+        }
+
+        // 5. Get adjacency from the Graph.
+<span class="nc" id="L244">        List&lt;Graph.GraphNode&gt; graphNeighbors = propertyGraph.getNeighbors(testObjectID);</span>
+<span class="nc" id="L245">        Set&lt;Integer&gt; graphNeighborIDs = graphNeighbors.stream()</span>
+<span class="nc" id="L246">                .map(Graph.GraphNode::getObjectID)</span>
+<span class="nc" id="L247">                .collect(Collectors.toSet());</span>
+
+        // 6. List-based adjacency check for the same record (using parishSubset).
+<span class="nc" id="L250">        List&lt;PropertyRecord&gt; listNeighbors = PropertyUtils.findAdjacentProperties(randomProperty, parishSubset);</span>
+<span class="nc" id="L251">        Set&lt;Integer&gt; listNeighborIDs = listNeighbors.stream()</span>
+<span class="nc" id="L252">                .map(PropertyRecord::getObjectID)</span>
+<span class="nc" id="L253">                .collect(Collectors.toSet());</span>
+
+        // 7. Compare the sets.
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        if (graphNeighborIDs.equals(listNeighborIDs)) {</span>
+<span class="nc" id="L257">            logger.info(&quot;Both methods agree on adjacency for objectID = {}&quot;, testObjectID);</span>
+        } else {
+<span class="nc" id="L259">            logger.warn(&quot;Mismatch in adjacency sets for objectID {}:\nGraph-based: {}\nList-based: {}&quot;,</span>
+<span class="nc" id="L260">                    testObjectID, graphNeighborIDs, listNeighborIDs);</span>
+        }
+
+        // 8. Build the JGraphT-based PropertyGraph (with STRtree-based adjacency).
+<span class="nc" id="L264">        PropertyGraph propertyGraphJgt = new PropertyGraph();</span>
+<span class="nc" id="L265">        propertyGraphJgt.buildGraph(parishSubset);</span>
+
+        // 8a. Calculate the average area of properties grouped by owner.
+<span class="nc" id="L268">        org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; jgtGraph = propertyGraphJgt.getGraph();</span>
+<span class="nc" id="L269">        double averageGroupedArea = PropertyUtils.calculateAverageGroupedArea(parishSubset, jgtGraph);</span>
+<span class="nc" id="L270">        System.out.println(&quot;Average area of properties in parish (grouped by owner) [ha]: &quot; + String.format(&quot;%.2f&quot;,averageGroupedArea));</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (averageArea != averageGroupedArea) {</span>
+<span class="nc" id="L272">            System.out.println(&quot;These averages differ: &quot; + String.format(&quot;%.2f&quot;,averageArea) + &quot; ha&quot; + &quot; vs &quot;</span>
+<span class="nc" id="L273">                    + String.format(&quot;%.2f&quot;,averageGroupedArea) + &quot; ha&quot;);</span>
+        }
+
+        // 8b. Demonstrate merging adjacent properties that belong to the same owner, within this parish subset.
+<span class="nc" id="L277">        demonstrateMergingProperties(parishSubset);</span>
+
+        // 8c) Merge same-owner adjacency
+<span class="nc" id="L280">        List&lt;PropertyRecord&gt; merged = PropertyMerger.mergeSameOwner(parishSubset);</span>
+
+        // 8d) Build adjacency among these merged props
+<span class="nc" id="L283">        SimpleGraph&lt;PropertyRecord, DefaultEdge&gt; mergedGraph = MergedPropertyGraph.buildGraph(merged);</span>
+
+        // 8e) Suggest swaps with areaThreshold=0.1 =&gt; up to 10 suggestions
+<span class="nc" id="L286">        List&lt;SwapSuggestion&gt; suggestions = PropertySwapAdvisor.suggestSwaps(mergedGraph, 0.1, 10);</span>
+
+        // 8f) Print the suggestions
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        for (SwapSuggestion s : suggestions) {</span>
+<span class="nc" id="L290">            System.out.println(s);</span>
+<span class="nc" id="L291">        }</span>
+
+        // 9. Build the owner graph using the same parish subset.
+<span class="nc" id="L294">        OwnerGraph ownerGraph = new OwnerGraph();</span>
+<span class="nc" id="L295">        ownerGraph.buildGraph(parishSubset);</span>
+
+        // 10. Check how many owners are in the graph.
+<span class="nc" id="L298">        System.out.println(&quot;Number of owners in the OwnerGraph: &quot; + ownerGraph.getOwners().size());</span>
+
+        // 11. Pick one owner's ID (from the first property) and see who they're adjacent to.
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        if (!parishSubset.isEmpty()) {</span>
+<span class="nc" id="L302">            int someOwner = parishSubset.get(0).getOwner();</span>
+<span class="nc" id="L303">            Set&lt;Integer&gt; ownerNeighbors = ownerGraph.getNeighbors(someOwner);</span>
+<span class="nc" id="L304">            System.out.println(&quot;Owner &quot; + someOwner + &quot; is adjacent to owners: &quot; + ownerNeighbors);</span>
+        }
+
+        // 12. Calculate the distance to Funchal Sé.
+<span class="nc" id="L308">        double distanceToFunchal = PropertyUtils.distanceToFunchal(1234);</span>
+<span class="nc" id="L309">        System.out.println(&quot;Distance to Funchal Sé in kilometers: &quot; + String.format(&quot;%.1f&quot;, distanceToFunchal/1000));</span>
+
+        // 12a. Calculate the distance to Machico.
+<span class="nc" id="L312">        double distanceMachico = PropertyUtils.distanceToMachico(1234);</span>
+<span class="nc" id="L313">        System.out.println(&quot;Distance to Machico in kilometers: &quot; + String.format(&quot;%.1f&quot;, distanceMachico/1000));</span>
+
+        // 13. Visualize the STRtree-based property graph in GraphStream.
+        // GraphVisualization.visualizeGraph(propertyGraphJgt);
+
+        // 14. Create a swing-based UI for the application
+<span class="nc" id="L319">        AppUI.showUI();</span>
+
+<span class="nc" id="L321">    }</span>
+
+    /**
+     * Demonstrates merging adjacent properties belonging to the same owner.
+     * &lt;p&gt;
+     * This example filters properties by a chosen parish, then merges them
+     * to produce a new list where each connected component is collapsed
+     * into a single {@link PropertyRecord}.
+     */
+    private static void demonstrateMergingProperties(List&lt;PropertyRecord&gt; parishSubset) {
+<span class="nc" id="L331">        System.out.println(&quot;\n--- Demonstrate Merging of Adjacent Properties ---&quot;);</span>
+<span class="nc" id="L332">        List&lt;PropertyRecord&gt; merged = PropertyUtils.mergeAdjacentPropertiesSameOwner(parishSubset);</span>
+
+<span class="nc" id="L334">        System.out.println(&quot;Original subset size: &quot; + parishSubset.size());</span>
+<span class="nc" id="L335">        System.out.println(&quot;Merged subset size: &quot; + merged.size());</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        for (PropertyRecord mp : merged) {</span>
+<span class="nc" id="L337">            System.out.println(&quot;Merged property =&gt; Object ID=&quot; + mp.getObjectID()</span>
+<span class="nc" id="L338">                    + &quot;, Area [ha]=&quot; + mp.getShapeArea()</span>
+<span class="nc" id="L339">                    + &quot;, Geometry=&quot; + mp.getGeometry().substring(0, Math.min(60, mp.getGeometry().length())) + &quot;...&quot;);</span>
+<span class="nc" id="L340">        }</span>
+<span class="nc" id="L341">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

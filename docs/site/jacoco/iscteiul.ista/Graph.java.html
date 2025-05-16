@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Graph.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">Graph.java</span></div><h1>Graph.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import java.util.*;
+
+/**
+ * A Graph representation where each node is a property (with selected attributes),
+ * and edges connect properties that are adjacent (touching) based on their geometry.
+ */
+public class Graph {
+
+    /**
+     * An inner class representing a &quot;node&quot; in the graph.
+     * Each node corresponds to one PropertyRecord, storing:
+     * - The key attributes you want (objectID, parcelID, etc.)
+     * - A list (or set) of adjacent nodes
+     */
+    public static class GraphNode {
+        private final int objectID;
+        private final long parcelID;
+        private final double shapeLength;
+        private final double shapeArea;
+        private final int owner;
+        private final String parish;
+        private final String municipality;
+        private final String island;
+
+        // You can store the geometry if you want to re-check adjacency later.
+        private final String geometry;
+        private final double centroidX;
+        private final double centroidY;
+
+        // For the adjacency list, we store the neighboring nodes.
+<span class="fc" id="L33">        private final List&lt;GraphNode&gt; neighbors = new ArrayList&lt;&gt;();</span>
+
+        /**
+         * Constructs a {@link GraphNode} based on the data from the given {@link PropertyRecord}.
+         * &lt;p&gt;
+         * This includes attempting to parse the WKT geometry to compute a centroid (if valid).
+         *
+         * @param record the source property record used to populate this node's attributes
+         */
+<span class="fc" id="L42">        public GraphNode(PropertyRecord record) {</span>
+<span class="fc" id="L43">            this.objectID = record.getObjectID();</span>
+<span class="fc" id="L44">            this.parcelID = record.getParcelID();</span>
+<span class="fc" id="L45">            this.shapeLength = record.getShapeLength();</span>
+<span class="fc" id="L46">            this.shapeArea = record.getShapeArea();</span>
+<span class="fc" id="L47">            this.owner = record.getOwner();</span>
+<span class="fc" id="L48">            this.parish = record.getParish();</span>
+<span class="fc" id="L49">            this.municipality = record.getMunicipality();</span>
+<span class="fc" id="L50">            this.island = record.getIsland();</span>
+<span class="fc" id="L51">            this.geometry = record.getGeometry();</span>
+
+            // Compute centroid from WKT, if valid.
+<span class="fc" id="L54">            double tmpX = Double.NaN;</span>
+<span class="fc" id="L55">            double tmpY = Double.NaN;</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">            if (this.geometry != null) {</span>
+                try {
+                    // Use JTS to parse the WKT and get centroid.
+<span class="fc" id="L59">                    org.locationtech.jts.geom.Geometry geom =</span>
+<span class="fc" id="L60">                            new org.locationtech.jts.io.WKTReader().read(this.geometry);</span>
+<span class="fc" id="L61">                    org.locationtech.jts.geom.Point centroid = geom.getCentroid();</span>
+<span class="fc" id="L62">                    tmpX = centroid.getX();</span>
+<span class="fc" id="L63">                    tmpY = centroid.getY();</span>
+<span class="nc" id="L64">                } catch (org.locationtech.jts.io.ParseException e) {</span>
+<span class="nc" id="L65">                    System.err.println(&quot;Error parsing WKT for objectID=&quot; + objectID + &quot;: &quot; + e.getMessage());</span>
+<span class="fc" id="L66">                }</span>
+            }
+<span class="fc" id="L68">            this.centroidX = tmpX;</span>
+<span class="fc" id="L69">            this.centroidY = tmpY;</span>
+<span class="fc" id="L70">        }</span>
+
+        /**
+         * Returns the unique ID (objectID) for this property node.
+         *
+         * @return the object's unique integer ID
+         */
+        public int getObjectID() {
+<span class="fc" id="L78">            return objectID;</span>
+        }
+
+        /**
+         * Returns the parcel ID of this property.
+         *
+         * @return the parcel ID as a long
+         */
+        public long getParcelID() {
+<span class="nc" id="L87">            return parcelID;</span>
+        }
+
+        /**
+         * Returns the length of this property's shape.
+         *
+         * @return the shape length in the same units as stored
+         */
+        public double getShapeLength() {
+<span class="nc" id="L96">            return shapeLength;</span>
+        }
+
+        /**
+         * Returns the area of this property.
+         *
+         * @return the shape area in square units
+         */
+        public double getShapeArea() {
+<span class="nc" id="L105">            return shapeArea;</span>
+        }
+
+        /**
+         * Returns the owner's integer ID for this property.
+         *
+         * @return the owner's ID
+         */
+        public int getOwner() {
+<span class="nc" id="L114">            return owner;</span>
+        }
+
+        /**
+         * Returns the name of the parish where the property is located,
+         * or {@code null} if not applicable.
+         *
+         * @return the parish name, or {@code null}
+         */
+        public String getParish() {
+<span class="nc" id="L124">            return parish;</span>
+        }
+
+        /**
+         * Returns the name of the municipality where the property is located,
+         * or {@code null} if not applicable.
+         *
+         * @return the municipality name, or {@code null}
+         */
+        public String getMunicipality() {
+<span class="nc" id="L134">            return municipality;</span>
+        }
+
+        /**
+         * Returns the name of the island where the property is located,
+         * or {@code null} if not applicable.
+         *
+         * @return the island name, or {@code null}
+         */
+        public String getIsland() {
+<span class="nc" id="L144">            return island;</span>
+        }
+
+        /**
+         * Returns the raw WKT geometry string representing this property's boundaries,
+         * or {@code null} if not provided.
+         *
+         * @return the property's WKT geometry, or {@code null}
+         */
+        public String getGeometry() {
+<span class="nc" id="L154">            return geometry;</span>
+        }
+
+        /**
+         * Returns the x-coordinate of this property's centroid
+         * (computed from the geometry), or {@code NaN} if invalid.
+         *
+         * @return the x-coordinate of the centroid
+         */
+        public double getCentroidX() {
+<span class="nc" id="L164">            return centroidX;</span>
+        }
+
+        /**
+         * Returns the y-coordinate of this property's centroid
+         * (computed from the geometry), or {@code NaN} if invalid.
+         *
+         * @return the y-coordinate of the centroid
+         */
+        public double getCentroidY() {
+<span class="nc" id="L174">            return centroidY;</span>
+        }
+
+        /**
+         * Returns the list of adjacent (neighbor) nodes for this property node.
+         * &lt;p&gt;
+         * In an undirected property graph, these neighbors represent properties
+         * that are spatially adjacent (touching boundaries) to this node.
+         *
+         * @return a list of adjacent {@link GraphNode} objects
+         */
+        public List&lt;GraphNode&gt; getNeighbors() {
+<span class="fc" id="L186">            return neighbors;</span>
+        }
+
+        /**
+         * Adds a neighbor to the adjacency list.
+         */
+        private void addNeighbor(GraphNode neighbor) {
+<span class="fc" id="L193">            neighbors.add(neighbor);</span>
+<span class="fc" id="L194">        }</span>
+
+        @Override
+        public String toString() {
+<span class="nc" id="L198">            return &quot;GraphNode{&quot; +</span>
+                    &quot;objectID=&quot; + objectID +
+                    &quot;, parcelID=&quot; + parcelID +
+                    &quot;, shapeLength=&quot; + shapeLength +
+                    &quot;, shapeArea=&quot; + shapeArea +
+                    &quot;, owner=&quot; + owner +
+                    &quot;, parish='&quot; + parish + '\'' +
+                    &quot;, municipality='&quot; + municipality + '\'' +
+                    &quot;, island='&quot; + island + '\'' +
+                    '}';
+        }
+    }
+
+    /**
+     * A map of objectID -&gt; GraphNode for fast lookup by objectID.
+     * Alternatively, you could store a List&lt;GraphNode&gt; if you prefer.
+     */
+    private final Map&lt;Integer, GraphNode&gt; nodesById;
+
+    /**
+     * Constructs the Graph from a list of PropertyRecord objects.
+     *
+     * @param propertyRecords The list of properties to be added as nodes in the graph.
+     */
+<span class="fc" id="L222">    public Graph(List&lt;PropertyRecord&gt; propertyRecords) {</span>
+<span class="fc" id="L223">        this.nodesById = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L224">        buildNodes(propertyRecords);</span>
+<span class="fc" id="L225">        buildEdges(propertyRecords);</span>
+<span class="fc" id="L226">    }</span>
+
+    /**
+     * Creates a GraphNode for each PropertyRecord and stores them in the map.
+     */
+    private void buildNodes(List&lt;PropertyRecord&gt; propertyRecords) {
+<span class="fc bfc" id="L232" title="All 2 branches covered.">        for (PropertyRecord record : propertyRecords) {</span>
+<span class="fc" id="L233">            GraphNode node = new GraphNode(record);</span>
+<span class="fc" id="L234">            nodesById.put(node.getObjectID(), node);</span>
+<span class="fc" id="L235">        }</span>
+<span class="fc" id="L236">    }</span>
+
+    /**
+     * For each pair of PropertyRecord, checks adjacency using GeometryUtils.areAdjacent
+     * and if adjacent, links their corresponding GraphNodes.
+     */
+    private void buildEdges(List&lt;PropertyRecord&gt; propertyRecords) {
+        // We'll do a simple O(N^2) approach for adjacency.
+        // For large datasets, consider spatial indexing.
+<span class="fc bfc" id="L245" title="All 2 branches covered.">        for (int i = 0; i &lt; propertyRecords.size(); i++) {</span>
+<span class="fc" id="L246">            PropertyRecord recordA = propertyRecords.get(i);</span>
+<span class="fc bfc" id="L247" title="All 2 branches covered.">            for (int j = i + 1; j &lt; propertyRecords.size(); j++) {</span>
+<span class="fc" id="L248">                PropertyRecord recordB = propertyRecords.get(j);</span>
+
+<span class="fc" id="L250">                boolean adjacent = GeometryUtils.areAdjacent(</span>
+<span class="fc" id="L251">                        recordA.getGeometry(),</span>
+<span class="fc" id="L252">                        recordB.getGeometry()</span>
+                );
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                if (adjacent) {</span>
+<span class="fc" id="L255">                    GraphNode nodeA = nodesById.get(recordA.getObjectID());</span>
+<span class="fc" id="L256">                    GraphNode nodeB = nodesById.get(recordB.getObjectID());</span>
+<span class="fc" id="L257">                    nodeA.addNeighbor(nodeB);</span>
+<span class="fc" id="L258">                    nodeB.addNeighbor(nodeA);  // undirected graph</span>
+                }
+            }
+        }
+<span class="fc" id="L262">    }</span>
+
+    /**
+     * Returns all GraphNodes in this graph.
+     *
+     * @return a Collection of all {@link GraphNode} objects in this graph
+     */
+    public Collection&lt;GraphNode&gt; getAllNodes() {
+<span class="fc" id="L270">        return nodesById.values();</span>
+    }
+
+    /**
+     * Returns the node for a given objectID, or {@code null} if none exists.
+     *
+     * @param objectID the unique identifier of the property node
+     * @return the {@link GraphNode} with the specified objectID, or {@code null} if no node is found
+     */
+    public GraphNode getNodeByObjectID(int objectID) {
+<span class="fc" id="L280">        return nodesById.get(objectID);</span>
+    }
+
+    /**
+     * Returns the adjacency list (neighbors) for the specified objectID,
+     * or an empty list if the objectID does not exist in the graph.
+     *
+     * @param objectID the unique identifier of the property node
+     * @return a list of neighbor {@link GraphNode} objects, or an empty list if not found
+     */
+    public List&lt;GraphNode&gt; getNeighbors(int objectID) {
+<span class="fc" id="L291">        GraphNode node = nodesById.get(objectID);</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        if (node != null) {</span>
+<span class="fc" id="L293">            return node.getNeighbors();</span>
+        }
+<span class="nc" id="L295">        return Collections.emptyList();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

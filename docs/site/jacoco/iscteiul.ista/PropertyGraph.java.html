@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PropertyGraph.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">PropertyGraph.java</span></div><h1>PropertyGraph.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.Graph;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+import org.locationtech.jts.index.strtree.STRtree;
+
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The {@code PropertyGraph} class constructs and manages a graph of {@link PropertyRecord}
+ * objects, where edges represent adjacency (shared boundaries) between properties.
+ *
+ * &lt;p&gt;It uses:
+ * &lt;ul&gt;
+ *   &lt;li&gt;A JGraphT {@link Graph} to store vertices (properties) and edges (adjacency)&lt;/li&gt;
+ *   &lt;li&gt;An R-tree ({@link STRtree}) for efficient spatial queries on property geometry&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;strong&gt;Usage Example:&lt;/strong&gt;&lt;/p&gt;
+ * &lt;pre&gt;{@code
+ * // 1. Create a PropertyGraph instance
+ * PropertyGraph propertyGraph = new PropertyGraph();
+ *
+ * // 2. Build the graph from a list of PropertyRecords
+ * propertyGraph.buildGraph(propertyList);
+ *
+ * // 3. Get the resulting JGraphT Graph for further processing
+ * Graph&lt;PropertyRecord, DefaultEdge&gt; jGraphTGraph = propertyGraph.getGraph();
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;strong&gt;Thread Safety:&lt;/strong&gt; This class uses synchronized blocks and a
+ * {@link ConcurrentHashMap} to prevent concurrency issues during graph construction.
+ * If you do not need concurrency, consider simplifying the implementation by removing
+ * these synchronized structures.&lt;/p&gt;
+ */
+public class PropertyGraph {
+
+    /**
+     * The JGraphT graph where each vertex is a {@link PropertyRecord}
+     * and each edge is a {@link DefaultEdge} representing adjacency.
+     */
+    private final Graph&lt;PropertyRecord, DefaultEdge&gt; graph;
+
+    /**
+     * Spatial index (R-tree) for quick lookups of nearby properties.
+     * Used to reduce the computational cost of finding candidate neighbors.
+     */
+    private final STRtree spatialIndex;
+
+    /**
+     * Constructs an empty {@code PropertyGraph} with a {@link SimpleGraph}
+     * and an {@link STRtree} for spatial indexing.
+     */
+<span class="fc" id="L56">    public PropertyGraph() {</span>
+<span class="fc" id="L57">        this.graph = new SimpleGraph&lt;&gt;(DefaultEdge.class);</span>
+<span class="fc" id="L58">        this.spatialIndex = new STRtree(); // R-tree for spatial indexing</span>
+<span class="fc" id="L59">    }</span>
+
+    /**
+     * Builds the adjacency graph from a list of {@link PropertyRecord} objects.
+     * &lt;ul&gt;
+     *   &lt;li&gt;&lt;strong&gt;Step 1:&lt;/strong&gt; Each property is added to the graph as a vertex,
+     *       and also inserted into the {@link STRtree} for spatial queries.&lt;/li&gt;
+     *   &lt;li&gt;&lt;strong&gt;Step 2:&lt;/strong&gt; For each property, neighbors are retrieved from
+     *       the spatial index, and {@code PropertyUtils.arePropertiesAdjacent(...)}
+     *       is used to verify adjacency before creating edges.&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * &lt;p&gt;This method is synchronized, ensuring thread safety if multiple threads attempt
+     * to build the graph simultaneously. It also employs a {@link ConcurrentHashMap}
+     * for tracking properties by their {@code objectID}, though the map is not further
+     * used within this method.&lt;/p&gt;
+     *
+     * @param properties the list of {@link PropertyRecord} instances to incorporate
+     *                   into the graph.
+     */
+    public void buildGraph(List&lt;PropertyRecord&gt; properties) {
+        // A concurrent map to store properties by their ID, if needed.
+<span class="fc" id="L81">        ConcurrentHashMap&lt;Integer, PropertyRecord&gt; propertyMap = new ConcurrentHashMap&lt;&gt;();</span>
+
+        // Step 1: Add all vertices to the graph and spatial index.
+<span class="fc" id="L84">        properties.forEach(property -&gt; {</span>
+<span class="fc" id="L85">            synchronized (this) {</span>
+<span class="fc" id="L86">                graph.addVertex(property);</span>
+<span class="fc" id="L87">                spatialIndex.insert(GeometryUtils.getEnvelope(property.getGeometry()), property);</span>
+<span class="fc" id="L88">                propertyMap.put(property.getObjectID(), property);</span>
+<span class="fc" id="L89">            }</span>
+<span class="fc" id="L90">        });</span>
+
+        // Step 2: Identify and add edges for adjacent properties.
+<span class="fc" id="L93">        properties.forEach(property -&gt; {</span>
+            // Query potential neighbors from the spatial index using property envelope
+<span class="fc" id="L95">            List&lt;?&gt; neighbors = spatialIndex.query(GeometryUtils.getEnvelope(property.getGeometry()));</span>
+
+            // Check adjacency and add edges.
+<span class="fc" id="L98">            neighbors.forEach(obj -&gt; {</span>
+<span class="fc" id="L99">                PropertyRecord neighbor = (PropertyRecord) obj;</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">                if (!property.equals(neighbor)</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">                        &amp;&amp; PropertyUtils.arePropertiesAdjacent(property, neighbor)) {</span>
+<span class="fc" id="L102">                    synchronized (this) {</span>
+                        // Ensure vertices still exist in the graph
+<span class="pc bpc" id="L104" title="2 of 4 branches missed.">                        if (graph.containsVertex(property) &amp;&amp; graph.containsVertex(neighbor)) {</span>
+<span class="fc" id="L105">                            graph.addEdge(property, neighbor);</span>
+                        } else {
+<span class="nc" id="L107">                            System.err.println(</span>
+                                    &quot;Error: Attempting to add edge with non-existent vertex -&gt; &quot;
+                                            + property + &quot; &lt;-&gt; &quot; + neighbor
+                            );
+                        }
+<span class="fc" id="L112">                    }</span>
+                }
+<span class="fc" id="L114">            });</span>
+<span class="fc" id="L115">        });</span>
+
+<span class="fc" id="L117">        System.out.println(&quot;Graph built with &quot; + graph.vertexSet().size() + &quot; vertices and &quot;</span>
+<span class="fc" id="L118">                + graph.edgeSet().size() + &quot; edges.&quot;);</span>
+<span class="fc" id="L119">    }</span>
+
+    /**
+     * Returns the underlying JGraphT graph containing property vertices and adjacency edges.
+     *
+     * @return the {@link Graph} of {@link PropertyRecord} vertices and {@link DefaultEdge} edges.
+     */
+    public Graph&lt;PropertyRecord, DefaultEdge&gt; getGraph() {
+<span class="fc" id="L127">        return graph;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

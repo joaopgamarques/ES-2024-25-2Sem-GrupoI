@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 public class AppTest {
 
     /**
-     * Rigorous Test :-)
+     * Unit test
      */
     @Test
     public void shouldAnswerWithTrue() {

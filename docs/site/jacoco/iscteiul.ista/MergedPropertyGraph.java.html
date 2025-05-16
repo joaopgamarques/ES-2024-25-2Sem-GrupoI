@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MergedPropertyGraph.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">MergedPropertyGraph.java</span></div><h1>MergedPropertyGraph.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
+import java.util.List;
+
+/**
+ * Builds a graph of &quot;merged properties&quot; where each vertex is a property
+ * (resulting from merging same-owner polygons), and an edge indicates
+ * these two merged properties are neighbors (their polygons touch).
+ */
+public final class MergedPropertyGraph {
+
+    private MergedPropertyGraph() {
+        // no instantiation
+    }
+
+    /**
+     * Constructs a graph of merged properties, where edges link
+     * two merged properties if they are adjacent (touch).
+     *
+     * @param mergedProps the list of properties after merging
+     * @return a {@link SimpleGraph} with each property as a vertex, edges for adjacency
+     */
+    public static SimpleGraph&lt;PropertyRecord, DefaultEdge&gt; buildGraph(List&lt;PropertyRecord&gt; mergedProps) {
+<span class="fc" id="L27">        SimpleGraph&lt;PropertyRecord, DefaultEdge&gt; graph = new SimpleGraph&lt;&gt;(DefaultEdge.class);</span>
+
+        // Add vertices
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        for (PropertyRecord p : mergedProps) {</span>
+<span class="fc" id="L31">            graph.addVertex(p);</span>
+<span class="fc" id="L32">        }</span>
+
+        // Check adjacency among these &quot;big&quot; merged properties
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        for (int i = 0; i &lt; mergedProps.size(); i++) {</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">            for (int j = i + 1; j &lt; mergedProps.size(); j++) {</span>
+<span class="fc" id="L37">                PropertyRecord a = mergedProps.get(i);</span>
+<span class="fc" id="L38">                PropertyRecord b = mergedProps.get(j);</span>
+                // skip if same owner =&gt; we only want adjacency among different owners?
+                // or do we keep adjacency anyway? depends on your definition
+                // We'll build adjacency for all, so you can choose later
+<span class="fc bfc" id="L42" title="All 2 branches covered.">                if (GeometryUtils.areAdjacent(a.getGeometry(), b.getGeometry())) {</span>
+<span class="fc" id="L43">                    graph.addEdge(a, b);</span>
+                }
+            }
+        }
+
+<span class="fc" id="L48">        return graph;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

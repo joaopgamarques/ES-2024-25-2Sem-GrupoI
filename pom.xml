@@ -110,6 +110,13 @@
               <goal>jar</goal>
             </goals>
           </execution>
+          <execution>
+            <id>generate-javadoc-site</id>
+            <phase>site</phase>
+            <goals>
+              <goal>javadoc</goal>
+            </goals>
+          </execution>
         </executions>
       </plugin>
 

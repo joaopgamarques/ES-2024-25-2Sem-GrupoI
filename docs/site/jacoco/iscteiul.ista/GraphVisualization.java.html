@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GraphVisualization.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">GraphVisualization.java</span></div><h1>GraphVisualization.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.graphstream.graph.Graph;
+import org.graphstream.graph.Node;
+import org.graphstream.graph.implementations.SingleGraph;
+import org.graphstream.ui.view.Viewer;
+import org.jgrapht.graph.DefaultEdge;
+
+/**
+ * The {@code GraphVisualization} class provides methods to visualize
+ * a {@link PropertyGraph} using the GraphStream library.
+ *
+ * &lt;p&gt;It transforms the internal JGraphT structure into a GraphStream
+ * graph, enabling interactive visual inspection of adjacency relationships
+ * between {@link PropertyRecord} objects.&lt;/p&gt;
+ *
+ * &lt;p&gt;&lt;strong&gt;Usage Example:&lt;/strong&gt;&lt;/p&gt;
+ * &lt;pre&gt;{@code
+ * // 1. Construct or retrieve an existing PropertyGraph
+ * PropertyGraph propertyGraph = new PropertyGraph();
+ * propertyGraph.buildGraph(propertyList);
+ *
+ * // 2. Pass it to the visualizeGraph method
+ * GraphVisualization.visualizeGraph(propertyGraph);
+ * }&lt;/pre&gt;
+ */
+public final class GraphVisualization {
+
+    /**
+     * Private constructor to prevent instantiation.
+     * &lt;p&gt;
+     * This utility class holds only static methods for graph visualization.
+     *
+     * @throws AssertionError always, because this constructor should never be called.
+     */
+<span class="nc" id="L36">    private GraphVisualization() {</span>
+<span class="nc" id="L37">        throw new AssertionError(&quot;Utility class - do not instantiate.&quot;);</span>
+    }
+
+    /**
+     * Visualizes the given {@link PropertyGraph} in an interactive GraphStream window.
+     * &lt;ul&gt;
+     *   &lt;li&gt;Converts each {@code PropertyRecord} from the JGraphT graph into a GraphStream node,
+     *       labeling it with the property's {@code parcelID}.&lt;/li&gt;
+     *   &lt;li&gt;Establishes edges between nodes for every {@link DefaultEdge} in the JGraphT graph.&lt;/li&gt;
+     *   &lt;li&gt;Applies basic styling: connected nodes appear green, isolated nodes appear red.&lt;/li&gt;
+     *   &lt;li&gt;Enables quality settings (antialiasing) for a smoother visualization and starts
+     *       auto-layout to position nodes automatically.&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * @param propertyGraph the {@link PropertyGraph} to be visualized. Must not be null.
+     */
+    public static void visualizeGraph(PropertyGraph propertyGraph) {
+        // Create a new GraphStream graph instance
+<span class="fc" id="L55">        Graph graphStreamGraph = new SingleGraph(&quot;Property Graph&quot;);</span>
+<span class="fc" id="L56">        System.setProperty(&quot;org.graphstream.ui&quot;, &quot;swing&quot;);</span>
+
+        // Add a GraphStream node for each PropertyRecord (vertex in JGraphT).
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        for (PropertyRecord property : propertyGraph.getGraph().vertexSet()) {</span>
+<span class="fc" id="L60">            Node node = graphStreamGraph.addNode(String.valueOf(property.getObjectID()));</span>
+<span class="fc" id="L61">            node.setAttribute(&quot;ui.label&quot;, property.getParcelID());</span>
+<span class="fc" id="L62">        }</span>
+
+        // Add GraphStream edges for each adjacency edge in the JGraphT graph.
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        for (DefaultEdge edge : propertyGraph.getGraph().edgeSet()) {</span>
+<span class="fc" id="L66">            PropertyRecord source = propertyGraph.getGraph().getEdgeSource(edge);</span>
+<span class="fc" id="L67">            PropertyRecord target = propertyGraph.getGraph().getEdgeTarget(edge);</span>
+
+<span class="fc" id="L69">            graphStreamGraph.addEdge(</span>
+<span class="fc" id="L70">                    source.getObjectID() + &quot;-&quot; + target.getObjectID(),</span>
+<span class="fc" id="L71">                    String.valueOf(source.getObjectID()),</span>
+<span class="fc" id="L72">                    String.valueOf(target.getObjectID())</span>
+            );
+<span class="fc" id="L74">        }</span>
+
+        // Apply color styling: green for connected nodes, red for isolated ones.
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        for (Node node : graphStreamGraph) {</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">            if (node.getDegree() &gt; 0) {</span>
+<span class="fc" id="L79">                node.setAttribute(&quot;ui.style&quot;, &quot;fill-color: green; size: 10px; text-size: 12px;&quot;);</span>
+            } else {
+<span class="nc" id="L81">                node.setAttribute(&quot;ui.style&quot;, &quot;fill-color: red; size: 10px; text-size: 12px;&quot;);</span>
+            }
+<span class="fc" id="L83">        }</span>
+
+        // Enable anti-aliasing and quality settings.
+<span class="fc" id="L86">        graphStreamGraph.setAttribute(&quot;ui.quality&quot;);</span>
+<span class="fc" id="L87">        graphStreamGraph.setAttribute(&quot;ui.antialias&quot;);</span>
+
+        // Display the graph in an interactive viewer with auto-layout.
+<span class="fc" id="L90">        Viewer viewer = graphStreamGraph.display();</span>
+<span class="fc" id="L91">        viewer.enableAutoLayout();</span>
+<span class="fc" id="L92">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

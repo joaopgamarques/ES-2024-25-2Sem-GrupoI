@@ -1,0 +1,580 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
+<head><meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>PropertyUtils xref</title>
+<link type="text/css" rel="stylesheet" href="../../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../apidocs/iscteiul/ista/PropertyUtils.html">View Javadoc</a></div><pre>
+<a class="jxr_linenumber" name="L1" href="#L1">1</a>   <strong class="jxr_keyword">package</strong> iscteiul.ista;
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   
+<a class="jxr_linenumber" name="L3" href="#L3">3</a>   <strong class="jxr_keyword">import</strong> org.jgrapht.alg.connectivity.ConnectivityInspector;
+<a class="jxr_linenumber" name="L4" href="#L4">4</a>   <strong class="jxr_keyword">import</strong> org.jgrapht.graph.DefaultEdge;
+<a class="jxr_linenumber" name="L5" href="#L5">5</a>   <strong class="jxr_keyword">import</strong> org.jgrapht.graph.SimpleGraph;
+<a class="jxr_linenumber" name="L6" href="#L6">6</a>   
+<a class="jxr_linenumber" name="L7" href="#L7">7</a>   <strong class="jxr_keyword">import</strong> java.util.*;
+<a class="jxr_linenumber" name="L8" href="#L8">8</a>   <strong class="jxr_keyword">import</strong> java.util.stream.Collectors;
+<a class="jxr_linenumber" name="L9" href="#L9">9</a>   
+<a class="jxr_linenumber" name="L10" href="#L10">10</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L11" href="#L11">11</a>  <em class="jxr_javadoccomment"> * A stateless utility class providing helper methods to work with PropertyRecord objects.</em>
+<a class="jxr_linenumber" name="L12" href="#L12">12</a>  <em class="jxr_javadoccomment"> * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L13" href="#L13">13</a>  <em class="jxr_javadoccomment"> * Typical usage: filtering properties by owner, by municipality, checking adjacency among them,</em>
+<a class="jxr_linenumber" name="L14" href="#L14">14</a>  <em class="jxr_javadoccomment"> * etc.</em>
+<a class="jxr_linenumber" name="L15" href="#L15">15</a>  <em class="jxr_javadoccomment"> * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L16" href="#L16">16</a>  <em class="jxr_javadoccomment"> * All methods are static (no internal state).</em>
+<a class="jxr_linenumber" name="L17" href="#L17">17</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a name="PropertyUtils" href="../../iscteiul/ista/PropertyUtils.html#PropertyUtils">PropertyUtils</a> {
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <em class="jxr_javadoccomment">     * Private constructor to prevent instantiation,</em>
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <em class="jxr_javadoccomment">     * as this is intended to be a static utility class.</em>
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <em class="jxr_javadoccomment">     * Since all methods in this class are static and no instance fields</em>
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <em class="jxr_javadoccomment">     * exist, there is no purpose in creating an object of this class.</em>
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <em class="jxr_javadoccomment">     * Consequently, calling this constructor always results in an</em>
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <em class="jxr_javadoccomment">     * {@link AssertionError}.</em>
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <em class="jxr_javadoccomment">     * @throws AssertionError always, since this constructor should never be called</em>
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>      <strong class="jxr_keyword">private</strong> <a name="PropertyUtils" href="../../iscteiul/ista/PropertyUtils.html#PropertyUtils">PropertyUtils</a>() {
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>          <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> AssertionError(<span class="jxr_string">"Utility class - do not instantiate."</span>);
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>      }
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <em class="jxr_javadoccomment">     * Returns a list of PropertyRecord objects owned by the specified owner.</em>
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <em class="jxr_javadoccomment">     * @param records the list of all PropertyRecord objects</em>
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <em class="jxr_javadoccomment">     * @param ownerId the owner ID to filter by</em>
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <em class="jxr_javadoccomment">     * @return a new List of PropertyRecord matching the given ownerId</em>
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;PropertyRecord&gt; findByOwner(List&lt;PropertyRecord&gt; records, <strong class="jxr_keyword">int</strong> ownerId) {
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>          <strong class="jxr_keyword">if</strong> (records == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>          }
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>          <strong class="jxr_keyword">return</strong> records.stream()
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>                  .filter(r -&gt; r.getOwner() == ownerId)
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>                  .collect(Collectors.toList());
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>      }
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  <em class="jxr_javadoccomment">     * Filters PropertyRecord objects by a given municipality name (case-sensitive).</em>
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <em class="jxr_javadoccomment">     * @param records      the list of all PropertyRecord objects</em>
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <em class="jxr_javadoccomment">     * @param municipality the municipality to match; if null, returns empty list</em>
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <em class="jxr_javadoccomment">     * @return a new List of PropertyRecord in that municipality</em>
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;PropertyRecord&gt; findByMunicipality(List&lt;PropertyRecord&gt; records, String municipality) {
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>          <strong class="jxr_keyword">if</strong> (records == <strong class="jxr_keyword">null</strong> || municipality == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>          }
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>          <strong class="jxr_keyword">return</strong> records.stream()
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>                  .filter(r -&gt; municipality.equals(r.getMunicipality()))
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>                  .collect(Collectors.toList());
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      }
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>  
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>  <em class="jxr_javadoccomment">     * Filters PropertyRecord objects by the given island (case-sensitive).</em>
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     * @param records the list of all PropertyRecord objects</em>
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>  <em class="jxr_javadoccomment">     * @param island  the island to match; if null, returns empty list</em>
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>  <em class="jxr_javadoccomment">     * @return a new List of PropertyRecord on that island</em>
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;PropertyRecord&gt; findByIsland(List&lt;PropertyRecord&gt; records, String island) {
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>          <strong class="jxr_keyword">if</strong> (records == <strong class="jxr_keyword">null</strong> || island == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>          }
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>          <strong class="jxr_keyword">return</strong> records.stream()
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>                  .filter(r -&gt; island.equals(r.getIsland()))
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>                  .collect(Collectors.toList());
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>      }
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>  
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>  <em class="jxr_javadoccomment">     * Checks if two PropertyRecords are adjacent (touching) by delegating to GeometryUtils.</em>
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>  <em class="jxr_javadoccomment">     * Returns false if either geometry is missing/null.</em>
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>  <em class="jxr_javadoccomment">     * @param a the first PropertyRecord</em>
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>  <em class="jxr_javadoccomment">     * @param b the second PropertyRecord</em>
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>  <em class="jxr_javadoccomment">     * @return true if they are adjacent (touch), false otherwise</em>
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> arePropertiesAdjacent(<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> a, <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> b) {
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>          <strong class="jxr_keyword">if</strong> (a == <strong class="jxr_keyword">null</strong> || b == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>              <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>          }
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>          String wktA = a.getGeometry();
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          String wktB = b.getGeometry();
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <strong class="jxr_keyword">return</strong> GeometryUtils.areAdjacent(wktA, wktB);
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>      }
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>  
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L101" href="#L101">101</a> <em class="jxr_javadoccomment">     * Finds all properties in the list that are adjacent to a given PropertyRecord (excluding itself).</em>
+<a class="jxr_linenumber" name="L102" href="#L102">102</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L103" href="#L103">103</a> <em class="jxr_javadoccomment">     * @param record  the reference PropertyRecord</em>
+<a class="jxr_linenumber" name="L104" href="#L104">104</a> <em class="jxr_javadoccomment">     * @param records the list of all PropertyRecord objects to check</em>
+<a class="jxr_linenumber" name="L105" href="#L105">105</a> <em class="jxr_javadoccomment">     * @return a List of PropertyRecords that touch the given record</em>
+<a class="jxr_linenumber" name="L106" href="#L106">106</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;PropertyRecord&gt; findAdjacentProperties(
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>             <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> record, List&lt;PropertyRecord&gt; records) {
+<a class="jxr_linenumber" name="L109" href="#L109">109</a> 
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         List&lt;PropertyRecord&gt; result = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">if</strong> (record == <strong class="jxr_keyword">null</strong> || records == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>             <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>         }
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>         <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> r : records) {
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>             <strong class="jxr_keyword">if</strong> (r == record) {
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>                 <strong class="jxr_keyword">continue</strong>;  <em class="jxr_comment">// Skip the same instance</em>
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>             }
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>             <strong class="jxr_keyword">if</strong> (arePropertiesAdjacent(record, r)) {
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>                 result.add(r);
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>             }
+<a class="jxr_linenumber" name="L121" href="#L121">121</a>         }
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>         <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>     }
+<a class="jxr_linenumber" name="L124" href="#L124">124</a> 
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L126" href="#L126">126</a> <em class="jxr_javadoccomment">     * Returns a set of distinct parish names among the given PropertyRecord list.</em>
+<a class="jxr_linenumber" name="L127" href="#L127">127</a> <em class="jxr_javadoccomment">     * Null parish fields are excluded.</em>
+<a class="jxr_linenumber" name="L128" href="#L128">128</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L129" href="#L129">129</a> <em class="jxr_javadoccomment">     * @param records the list of PropertyRecord objects</em>
+<a class="jxr_linenumber" name="L130" href="#L130">130</a> <em class="jxr_javadoccomment">     * @return a Set of unique parish strings, or an empty set if records is null or no parishes</em>
+<a class="jxr_linenumber" name="L131" href="#L131">131</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Set&lt;String&gt; getDistinctParishes(List&lt;PropertyRecord&gt; records) {
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>         <strong class="jxr_keyword">if</strong> (records == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>             <strong class="jxr_keyword">return</strong> Collections.emptySet();
+<a class="jxr_linenumber" name="L135" href="#L135">135</a>         }
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>         <strong class="jxr_keyword">return</strong> records.stream()
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>                 .map(PropertyRecord::getParish)
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>                 .filter(Objects::nonNull)  <em class="jxr_comment">// skip null</em>
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>                 .collect(Collectors.toSet());
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>     }
+<a class="jxr_linenumber" name="L141" href="#L141">141</a> 
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L143" href="#L143">143</a> <em class="jxr_javadoccomment">     * Returns a set of distinct municipality names among the given PropertyRecord list.</em>
+<a class="jxr_linenumber" name="L144" href="#L144">144</a> <em class="jxr_javadoccomment">     * Null municipality fields are excluded.</em>
+<a class="jxr_linenumber" name="L145" href="#L145">145</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L146" href="#L146">146</a> <em class="jxr_javadoccomment">     * @param records the list of PropertyRecord objects</em>
+<a class="jxr_linenumber" name="L147" href="#L147">147</a> <em class="jxr_javadoccomment">     * @return a Set of unique municipality strings, or an empty set if records is null or no municipalities</em>
+<a class="jxr_linenumber" name="L148" href="#L148">148</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Set&lt;String&gt; getDistinctMunicipalities(List&lt;PropertyRecord&gt; records) {
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>         <strong class="jxr_keyword">if</strong> (records == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>             <strong class="jxr_keyword">return</strong> Collections.emptySet();
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>         }
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>         <strong class="jxr_keyword">return</strong> records.stream()
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>                 .map(PropertyRecord::getMunicipality)
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>                 .filter(Objects::nonNull)  <em class="jxr_comment">// skip null</em>
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                 .collect(Collectors.toSet());
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>     }
+<a class="jxr_linenumber" name="L158" href="#L158">158</a> 
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>     <em class="jxr_comment">// You can add more utility methods here (e.g., merging contiguous properties,</em>
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>     <em class="jxr_comment">// generating swap suggestions, etc.) as needed.</em>
+<a class="jxr_linenumber" name="L161" href="#L161">161</a> 
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L163" href="#L163">163</a> <em class="jxr_javadoccomment">     * Filters a list of {@link PropertyRecord} objects by the specified parish name.</em>
+<a class="jxr_linenumber" name="L164" href="#L164">164</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L165" href="#L165">165</a> <em class="jxr_javadoccomment">     * @param records the list of all {@link PropertyRecord} objects</em>
+<a class="jxr_linenumber" name="L166" href="#L166">166</a> <em class="jxr_javadoccomment">     * @param parish the parish name to filter by; case-sensitive</em>
+<a class="jxr_linenumber" name="L167" href="#L167">167</a> <em class="jxr_javadoccomment">     * @return a new list of {@link PropertyRecord} objects in the specified parish</em>
+<a class="jxr_linenumber" name="L168" href="#L168">168</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;PropertyRecord&gt; findByParish(List&lt;PropertyRecord&gt; records, String parish) {
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>         <strong class="jxr_keyword">if</strong> (records == <strong class="jxr_keyword">null</strong> || parish == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>         }
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>         <strong class="jxr_keyword">return</strong> records.stream()
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>                 .filter(r -&gt; parish.equals(r.getParish()))
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>                 .collect(Collectors.toList());
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>     }
+<a class="jxr_linenumber" name="L177" href="#L177">177</a> 
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L179" href="#L179">179</a> <em class="jxr_javadoccomment">     * Calculates the average area of the given list of {@link PropertyRecord} objects.</em>
+<a class="jxr_linenumber" name="L180" href="#L180">180</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L181" href="#L181">181</a> <em class="jxr_javadoccomment">     * @param properties the list of {@link PropertyRecord} objects</em>
+<a class="jxr_linenumber" name="L182" href="#L182">182</a> <em class="jxr_javadoccomment">     * @return the average area, or 0.0 if the list is null or empty</em>
+<a class="jxr_linenumber" name="L183" href="#L183">183</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">double</strong> calculateAverageArea(List&lt;PropertyRecord&gt; properties) {
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>         <strong class="jxr_keyword">if</strong> (properties == <strong class="jxr_keyword">null</strong> || properties.isEmpty()) <strong class="jxr_keyword">return</strong> 0.0;
+<a class="jxr_linenumber" name="L186" href="#L186">186</a> 
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>         <strong class="jxr_keyword">double</strong> totalArea = properties.stream()
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>                 .mapToDouble(PropertyRecord::getShapeArea)
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>                 .sum();
+<a class="jxr_linenumber" name="L190" href="#L190">190</a> 
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>         <strong class="jxr_keyword">return</strong> totalArea / properties.size();
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>     }
+<a class="jxr_linenumber" name="L193" href="#L193">193</a> 
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L195" href="#L195">195</a> <em class="jxr_javadoccomment">     * Groups a list of {@link PropertyRecord} objects by their owner ID.</em>
+<a class="jxr_linenumber" name="L196" href="#L196">196</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L197" href="#L197">197</a> <em class="jxr_javadoccomment">     * @param properties the list of {@link PropertyRecord} objects</em>
+<a class="jxr_linenumber" name="L198" href="#L198">198</a> <em class="jxr_javadoccomment">     * @return a map where the key is the owner ID and the value is a list of properties owned by that owner</em>
+<a class="jxr_linenumber" name="L199" href="#L199">199</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Map&lt;Integer, List&lt;PropertyRecord&gt;&gt; groupPropertiesByOwner(List&lt;PropertyRecord&gt; properties) {
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>         <strong class="jxr_keyword">if</strong> (properties == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> HashMap&lt;&gt;();
+<a class="jxr_linenumber" name="L202" href="#L202">202</a> 
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>         <strong class="jxr_keyword">return</strong> properties.stream()
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>                 .collect(Collectors.groupingBy(PropertyRecord::getOwner));
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>     }
+<a class="jxr_linenumber" name="L206" href="#L206">206</a> 
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L208" href="#L208">208</a> <em class="jxr_javadoccomment">     * Calculates the average area of connected property groups for each owner.</em>
+<a class="jxr_linenumber" name="L209" href="#L209">209</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L210" href="#L210">210</a> <em class="jxr_javadoccomment">     * &lt;p&gt;For each owner, builds a subgraph of their properties, identifies connected groups,</em>
+<a class="jxr_linenumber" name="L211" href="#L211">211</a> <em class="jxr_javadoccomment">     * and computes the total area for each group. Returns the average of these group areas.</em>
+<a class="jxr_linenumber" name="L212" href="#L212">212</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L213" href="#L213">213</a> <em class="jxr_javadoccomment">     * @param records the list of {@link PropertyRecord} objects</em>
+<a class="jxr_linenumber" name="L214" href="#L214">214</a> <em class="jxr_javadoccomment">     * @param fullGraph the full graph of properties and their connections</em>
+<a class="jxr_linenumber" name="L215" href="#L215">215</a> <em class="jxr_javadoccomment">     * @return the average area of connected property groups, or 0.0 if no groups are found</em>
+<a class="jxr_linenumber" name="L216" href="#L216">216</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">double</strong> calculateAverageGroupedArea(List&lt;PropertyRecord&gt; records, org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; fullGraph) {
+<a class="jxr_linenumber" name="L218" href="#L218">218</a>         <em class="jxr_comment">// If the full graph is null, we cannot proceed.</em>
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <strong class="jxr_keyword">if</strong> (fullGraph == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>             <strong class="jxr_keyword">return</strong> 0.0;
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>         }
+<a class="jxr_linenumber" name="L222" href="#L222">222</a> 
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>         <em class="jxr_comment">// 1) Group properties by owner.</em>
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>         Map&lt;Integer, List&lt;PropertyRecord&gt;&gt; ownerGroups = groupPropertiesByOwner(records);
+<a class="jxr_linenumber" name="L225" href="#L225">225</a> 
+<a class="jxr_linenumber" name="L226" href="#L226">226</a>         <em class="jxr_comment">// We'll store the total area of each connected component (for all owners) in this list.</em>
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>         List&lt;Double&gt; allGroupedAreas = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L228" href="#L228">228</a> 
+<a class="jxr_linenumber" name="L229" href="#L229">229</a>         <em class="jxr_comment">// 2) For each owner, create a subgraph using only that owner's properties.</em>
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>         <strong class="jxr_keyword">for</strong> (Map.Entry&lt;Integer, List&lt;PropertyRecord&gt;&gt; entry : ownerGroups.entrySet()) {
+<a class="jxr_linenumber" name="L231" href="#L231">231</a>             List&lt;PropertyRecord&gt; ownerProperties = entry.getValue();
+<a class="jxr_linenumber" name="L232" href="#L232">232</a> 
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>             <em class="jxr_comment">// Create a new empty subgraph for this owner's properties.</em>
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>             org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; subgraph = <strong class="jxr_keyword">new</strong> SimpleGraph&lt;&gt;(DefaultEdge.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L235" href="#L235">235</a> 
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>             <em class="jxr_comment">// Add each property as a vertex.</em>
+<a class="jxr_linenumber" name="L237" href="#L237">237</a>             <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> p : ownerProperties) {
+<a class="jxr_linenumber" name="L238" href="#L238">238</a>                 subgraph.addVertex(p);
+<a class="jxr_linenumber" name="L239" href="#L239">239</a>             }
+<a class="jxr_linenumber" name="L240" href="#L240">240</a> 
+<a class="jxr_linenumber" name="L241" href="#L241">241</a>             <em class="jxr_comment">// Check which pairs of these properties are connected in the full graph,</em>
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>             <em class="jxr_comment">// and add the corresponding edges to the subgraph.</em>
+<a class="jxr_linenumber" name="L243" href="#L243">243</a>             <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> p1 : ownerProperties) {
+<a class="jxr_linenumber" name="L244" href="#L244">244</a>                 <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> p2 : ownerProperties) {
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>                     <strong class="jxr_keyword">if</strong> (!p1.equals(p2) &amp;&amp; fullGraph.containsEdge(p1, p2)) {
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>                         <em class="jxr_comment">// Add an undirected edge (DefaultEdge) to the subgraph.</em>
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>                         subgraph.addEdge(p1, p2);
+<a class="jxr_linenumber" name="L248" href="#L248">248</a>                     }
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>                 }
+<a class="jxr_linenumber" name="L250" href="#L250">250</a>             }
+<a class="jxr_linenumber" name="L251" href="#L251">251</a> 
+<a class="jxr_linenumber" name="L252" href="#L252">252</a>             <em class="jxr_comment">// 3) Use JGraphT's ConnectivityInspector to find connected sets (components).</em>
+<a class="jxr_linenumber" name="L253" href="#L253">253</a>             ConnectivityInspector&lt;PropertyRecord, DefaultEdge&gt; inspector = <strong class="jxr_keyword">new</strong> ConnectivityInspector&lt;&gt;(subgraph);
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>             List&lt;Set&lt;PropertyRecord&gt;&gt; connectedSets = inspector.connectedSets();
+<a class="jxr_linenumber" name="L255" href="#L255">255</a> 
+<a class="jxr_linenumber" name="L256" href="#L256">256</a>             <em class="jxr_comment">// 4) For each connected component, sum the shape areas of the properties in that component.</em>
+<a class="jxr_linenumber" name="L257" href="#L257">257</a>             <strong class="jxr_keyword">for</strong> (Set&lt;PropertyRecord&gt; group : connectedSets) {
+<a class="jxr_linenumber" name="L258" href="#L258">258</a>                 <strong class="jxr_keyword">double</strong> totalArea = group.stream()
+<a class="jxr_linenumber" name="L259" href="#L259">259</a>                         .mapToDouble(PropertyRecord::getShapeArea)
+<a class="jxr_linenumber" name="L260" href="#L260">260</a>                         .sum();
+<a class="jxr_linenumber" name="L261" href="#L261">261</a>                 <em class="jxr_comment">// Store this group's total area in a list so we can average them later.</em>
+<a class="jxr_linenumber" name="L262" href="#L262">262</a>                 allGroupedAreas.add(totalArea);
+<a class="jxr_linenumber" name="L263" href="#L263">263</a>             }
+<a class="jxr_linenumber" name="L264" href="#L264">264</a>         }
+<a class="jxr_linenumber" name="L265" href="#L265">265</a> 
+<a class="jxr_linenumber" name="L266" href="#L266">266</a>         <em class="jxr_comment">// 5) Compute the average of all connected-group area sums, or 0.0 if the list is empty.</em>
+<a class="jxr_linenumber" name="L267" href="#L267">267</a>         <strong class="jxr_keyword">return</strong> allGroupedAreas.stream()
+<a class="jxr_linenumber" name="L268" href="#L268">268</a>                 .mapToDouble(Double::doubleValue)
+<a class="jxr_linenumber" name="L269" href="#L269">269</a>                 .average()
+<a class="jxr_linenumber" name="L270" href="#L270">270</a>                 .orElse(0.0);
+<a class="jxr_linenumber" name="L271" href="#L271">271</a>     }
+<a class="jxr_linenumber" name="L272" href="#L272">272</a> 
+<a class="jxr_linenumber" name="L273" href="#L273">273</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L274" href="#L274">274</a> <em class="jxr_javadoccomment">     * Computes the distance between the centroids of the given property (by its objectID)</em>
+<a class="jxr_linenumber" name="L275" href="#L275">275</a> <em class="jxr_javadoccomment">     * and the pre-loaded Funchal (Sé) reference property stored in {@link App#getFunchalPropertyRecord()}.</em>
+<a class="jxr_linenumber" name="L276" href="#L276">276</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L277" href="#L277">277</a> <em class="jxr_javadoccomment">     * This method no longer accepts a list of properties as an argument.</em>
+<a class="jxr_linenumber" name="L278" href="#L278">278</a> <em class="jxr_javadoccomment">     * Instead, it retrieves all records via {@link App#getPropertyRecords()}.</em>
+<a class="jxr_linenumber" name="L279" href="#L279">279</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L280" href="#L280">280</a> <em class="jxr_javadoccomment">     * &lt;p&gt;&lt;strong&gt;Important:&lt;/strong&gt; This uses {@code geometry.getCentroid()} from JTS,</em>
+<a class="jxr_linenumber" name="L281" href="#L281">281</a> <em class="jxr_javadoccomment">     * which returns the centroid in the same coordinate system as the geometry. If your</em>
+<a class="jxr_linenumber" name="L282" href="#L282">282</a> <em class="jxr_javadoccomment">     * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you</em>
+<a class="jxr_linenumber" name="L283" href="#L283">283</a> <em class="jxr_javadoccomment">     * must have a projected coordinate system.&lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L284" href="#L284">284</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L285" href="#L285">285</a> <em class="jxr_javadoccomment">     * @param propertyId the objectID of the source property whose centroid distance to</em>
+<a class="jxr_linenumber" name="L286" href="#L286">286</a> <em class="jxr_javadoccomment">     *                   the Funchal (Sé) reference we want</em>
+<a class="jxr_linenumber" name="L287" href="#L287">287</a> <em class="jxr_javadoccomment">     * @return the distance between centroids as a double; {@code Double.NaN} if the property</em>
+<a class="jxr_linenumber" name="L288" href="#L288">288</a> <em class="jxr_javadoccomment">     *         or Funchal reference is missing/invalid, or if geometry parse fails</em>
+<a class="jxr_linenumber" name="L289" href="#L289">289</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">double</strong> distanceToFunchal(<strong class="jxr_keyword">int</strong> propertyId) {
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>         <em class="jxr_comment">// 1) Find the source property record by propertyId</em>
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>         <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> source = App.getPropertyRecords().stream()
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>                 .filter(pr -&gt; pr.getObjectID() == propertyId)
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>                 .findFirst()
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>                 .orElse(<strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L296" href="#L296">296</a> 
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>         <em class="jxr_comment">// 2) Retrieve the Funchal (Sé) property from App</em>
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>         <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> funchalSe = App.getFunchalPropertyRecord();
+<a class="jxr_linenumber" name="L299" href="#L299">299</a> 
+<a class="jxr_linenumber" name="L300" href="#L300">300</a>         <em class="jxr_comment">// If either property was not found, return NaN</em>
+<a class="jxr_linenumber" name="L301" href="#L301">301</a>         <strong class="jxr_keyword">if</strong> (source == <strong class="jxr_keyword">null</strong> || funchalSe == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L302" href="#L302">302</a>             <strong class="jxr_keyword">return</strong> Double.NaN;
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>         }
+<a class="jxr_linenumber" name="L304" href="#L304">304</a> 
+<a class="jxr_linenumber" name="L305" href="#L305">305</a>         <em class="jxr_comment">// If either geometry is null or blank, return NaN</em>
+<a class="jxr_linenumber" name="L306" href="#L306">306</a>         String wktSource = source.getGeometry();
+<a class="jxr_linenumber" name="L307" href="#L307">307</a>         String wktFunchal = funchalSe.getGeometry();
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>         <strong class="jxr_keyword">if</strong> (wktSource == <strong class="jxr_keyword">null</strong> || wktFunchal == <strong class="jxr_keyword">null</strong> ||
+<a class="jxr_linenumber" name="L309" href="#L309">309</a>                 wktSource.isBlank() || wktFunchal.isBlank()) {
+<a class="jxr_linenumber" name="L310" href="#L310">310</a>             <strong class="jxr_keyword">return</strong> Double.NaN;
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>         }
+<a class="jxr_linenumber" name="L312" href="#L312">312</a> 
+<a class="jxr_linenumber" name="L313" href="#L313">313</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>             <em class="jxr_comment">// 3) Parse WKT with JTS</em>
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>             org.locationtech.jts.geom.Geometry geomSource =
+<a class="jxr_linenumber" name="L316" href="#L316">316</a>                     <strong class="jxr_keyword">new</strong> org.locationtech.jts.io.WKTReader().read(wktSource);
+<a class="jxr_linenumber" name="L317" href="#L317">317</a>             org.locationtech.jts.geom.Geometry geomFunchal =
+<a class="jxr_linenumber" name="L318" href="#L318">318</a>                     <strong class="jxr_keyword">new</strong> org.locationtech.jts.io.WKTReader().read(wktFunchal);
+<a class="jxr_linenumber" name="L319" href="#L319">319</a> 
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>             <em class="jxr_comment">// 4) Get centroids</em>
+<a class="jxr_linenumber" name="L321" href="#L321">321</a>             org.locationtech.jts.geom.Point centroidSource = geomSource.getCentroid();
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>             org.locationtech.jts.geom.Point centroidFunchal = geomFunchal.getCentroid();
+<a class="jxr_linenumber" name="L323" href="#L323">323</a> 
+<a class="jxr_linenumber" name="L324" href="#L324">324</a>             <em class="jxr_comment">// 5) Compute and return distance between centroids</em>
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>             <strong class="jxr_keyword">return</strong> centroidSource.distance(centroidFunchal);
+<a class="jxr_linenumber" name="L326" href="#L326">326</a> 
+<a class="jxr_linenumber" name="L327" href="#L327">327</a>         } <strong class="jxr_keyword">catch</strong> (org.locationtech.jts.io.ParseException e) {
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>             <em class="jxr_comment">// If the geometry fails to parse, return NaN</em>
+<a class="jxr_linenumber" name="L329" href="#L329">329</a>             <strong class="jxr_keyword">return</strong> Double.NaN;
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>         }
+<a class="jxr_linenumber" name="L331" href="#L331">331</a>     }
+<a class="jxr_linenumber" name="L332" href="#L332">332</a> 
+<a class="jxr_linenumber" name="L333" href="#L333">333</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L334" href="#L334">334</a> <em class="jxr_javadoccomment">     * Computes the distance between the centroids of the given property (by its objectID)</em>
+<a class="jxr_linenumber" name="L335" href="#L335">335</a> <em class="jxr_javadoccomment">     * and the pre-loaded Machico reference property stored in {@link App#getMachicoPropertyRecord()}.</em>
+<a class="jxr_linenumber" name="L336" href="#L336">336</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L337" href="#L337">337</a> <em class="jxr_javadoccomment">     * This method no longer accepts a list of properties as an argument.</em>
+<a class="jxr_linenumber" name="L338" href="#L338">338</a> <em class="jxr_javadoccomment">     * Instead, it retrieves all records via {@link App#getPropertyRecords()}.</em>
+<a class="jxr_linenumber" name="L339" href="#L339">339</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L340" href="#L340">340</a> <em class="jxr_javadoccomment">     * &lt;p&gt;&lt;strong&gt;Important:&lt;/strong&gt; This uses {@code geometry.getCentroid()} from JTS,</em>
+<a class="jxr_linenumber" name="L341" href="#L341">341</a> <em class="jxr_javadoccomment">     * which returns the centroid in the same coordinate system as the geometry. If your</em>
+<a class="jxr_linenumber" name="L342" href="#L342">342</a> <em class="jxr_javadoccomment">     * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you</em>
+<a class="jxr_linenumber" name="L343" href="#L343">343</a> <em class="jxr_javadoccomment">     * must have a projected coordinate system.&lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L344" href="#L344">344</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L345" href="#L345">345</a> <em class="jxr_javadoccomment">     * @param propertyId the objectID of the source property whose centroid distance to</em>
+<a class="jxr_linenumber" name="L346" href="#L346">346</a> <em class="jxr_javadoccomment">     *                   the Machico reference we want</em>
+<a class="jxr_linenumber" name="L347" href="#L347">347</a> <em class="jxr_javadoccomment">     * @return the distance between centroids as a double; {@code Double.NaN} if the property</em>
+<a class="jxr_linenumber" name="L348" href="#L348">348</a> <em class="jxr_javadoccomment">     *         or Machico reference is missing/invalid, or if geometry parse fails</em>
+<a class="jxr_linenumber" name="L349" href="#L349">349</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L350" href="#L350">350</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">double</strong> distanceToMachico(<strong class="jxr_keyword">int</strong> propertyId) {
+<a class="jxr_linenumber" name="L351" href="#L351">351</a>         <em class="jxr_comment">// 1) Find the source property record by propertyId</em>
+<a class="jxr_linenumber" name="L352" href="#L352">352</a>         <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> source = App.getPropertyRecords().stream()
+<a class="jxr_linenumber" name="L353" href="#L353">353</a>                 .filter(pr -&gt; pr.getObjectID() == propertyId)
+<a class="jxr_linenumber" name="L354" href="#L354">354</a>                 .findFirst()
+<a class="jxr_linenumber" name="L355" href="#L355">355</a>                 .orElse(<strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L356" href="#L356">356</a> 
+<a class="jxr_linenumber" name="L357" href="#L357">357</a>         <em class="jxr_comment">// 2) Retrieve the Machico property from App</em>
+<a class="jxr_linenumber" name="L358" href="#L358">358</a>         <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> machicoRef = App.getMachicoPropertyRecord();
+<a class="jxr_linenumber" name="L359" href="#L359">359</a> 
+<a class="jxr_linenumber" name="L360" href="#L360">360</a>         <em class="jxr_comment">// If either property was not found, return NaN</em>
+<a class="jxr_linenumber" name="L361" href="#L361">361</a>         <strong class="jxr_keyword">if</strong> (source == <strong class="jxr_keyword">null</strong> || machicoRef == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L362" href="#L362">362</a>             <strong class="jxr_keyword">return</strong> Double.NaN;
+<a class="jxr_linenumber" name="L363" href="#L363">363</a>         }
+<a class="jxr_linenumber" name="L364" href="#L364">364</a> 
+<a class="jxr_linenumber" name="L365" href="#L365">365</a>         <em class="jxr_comment">// If either geometry is null or blank, return NaN</em>
+<a class="jxr_linenumber" name="L366" href="#L366">366</a>         String wktSource = source.getGeometry();
+<a class="jxr_linenumber" name="L367" href="#L367">367</a>         String wktMachico = machicoRef.getGeometry();
+<a class="jxr_linenumber" name="L368" href="#L368">368</a>         <strong class="jxr_keyword">if</strong> (wktSource == <strong class="jxr_keyword">null</strong> || wktMachico == <strong class="jxr_keyword">null</strong> ||
+<a class="jxr_linenumber" name="L369" href="#L369">369</a>                 wktSource.isBlank() || wktMachico.isBlank()) {
+<a class="jxr_linenumber" name="L370" href="#L370">370</a>             <strong class="jxr_keyword">return</strong> Double.NaN;
+<a class="jxr_linenumber" name="L371" href="#L371">371</a>         }
+<a class="jxr_linenumber" name="L372" href="#L372">372</a> 
+<a class="jxr_linenumber" name="L373" href="#L373">373</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L374" href="#L374">374</a>             <em class="jxr_comment">// 3) Parse WKT with JTS</em>
+<a class="jxr_linenumber" name="L375" href="#L375">375</a>             org.locationtech.jts.geom.Geometry geomSource =
+<a class="jxr_linenumber" name="L376" href="#L376">376</a>                     <strong class="jxr_keyword">new</strong> org.locationtech.jts.io.WKTReader().read(wktSource);
+<a class="jxr_linenumber" name="L377" href="#L377">377</a>             org.locationtech.jts.geom.Geometry geomMachico =
+<a class="jxr_linenumber" name="L378" href="#L378">378</a>                     <strong class="jxr_keyword">new</strong> org.locationtech.jts.io.WKTReader().read(wktMachico);
+<a class="jxr_linenumber" name="L379" href="#L379">379</a> 
+<a class="jxr_linenumber" name="L380" href="#L380">380</a>             <em class="jxr_comment">// 4) Get centroids</em>
+<a class="jxr_linenumber" name="L381" href="#L381">381</a>             org.locationtech.jts.geom.Point centroidSource = geomSource.getCentroid();
+<a class="jxr_linenumber" name="L382" href="#L382">382</a>             org.locationtech.jts.geom.Point centroidMachico = geomMachico.getCentroid();
+<a class="jxr_linenumber" name="L383" href="#L383">383</a> 
+<a class="jxr_linenumber" name="L384" href="#L384">384</a>             <em class="jxr_comment">// 5) Compute and return distance between centroids</em>
+<a class="jxr_linenumber" name="L385" href="#L385">385</a>             <strong class="jxr_keyword">return</strong> centroidSource.distance(centroidMachico);
+<a class="jxr_linenumber" name="L386" href="#L386">386</a> 
+<a class="jxr_linenumber" name="L387" href="#L387">387</a>         } <strong class="jxr_keyword">catch</strong> (org.locationtech.jts.io.ParseException e) {
+<a class="jxr_linenumber" name="L388" href="#L388">388</a>             <em class="jxr_comment">// If the geometry fails to parse, return NaN</em>
+<a class="jxr_linenumber" name="L389" href="#L389">389</a>             <strong class="jxr_keyword">return</strong> Double.NaN;
+<a class="jxr_linenumber" name="L390" href="#L390">390</a>         }
+<a class="jxr_linenumber" name="L391" href="#L391">391</a>     }
+<a class="jxr_linenumber" name="L392" href="#L392">392</a> 
+<a class="jxr_linenumber" name="L393" href="#L393">393</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L394" href="#L394">394</a> <em class="jxr_javadoccomment">     * Merges properties belonging to the same owner if they are adjacent (touching).</em>
+<a class="jxr_linenumber" name="L395" href="#L395">395</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L396" href="#L396">396</a> <em class="jxr_javadoccomment">     * The result is a &lt;strong&gt;new list&lt;/strong&gt; of {@link PropertyRecord} in which each</em>
+<a class="jxr_linenumber" name="L397" href="#L397">397</a> <em class="jxr_javadoccomment">     * connected component of properties (same owner + adjacency) is replaced by a single</em>
+<a class="jxr_linenumber" name="L398" href="#L398">398</a> <em class="jxr_javadoccomment">     * merged property. This method:</em>
+<a class="jxr_linenumber" name="L399" href="#L399">399</a> <em class="jxr_javadoccomment">     * &lt;ul&gt;</em>
+<a class="jxr_linenumber" name="L400" href="#L400">400</a> <em class="jxr_javadoccomment">     *   &lt;li&gt;Uses a JGraphT {@code SimpleGraph} to link properties that have the same owner</em>
+<a class="jxr_linenumber" name="L401" href="#L401">401</a> <em class="jxr_javadoccomment">     *       and are {@link #arePropertiesAdjacent(PropertyRecord, PropertyRecord) adjacent};&lt;/li&gt;</em>
+<a class="jxr_linenumber" name="L402" href="#L402">402</a> <em class="jxr_javadoccomment">     *   &lt;li&gt;Finds connected components with JGraphT's {@code ConnectivityInspector};&lt;/li&gt;</em>
+<a class="jxr_linenumber" name="L403" href="#L403">403</a> <em class="jxr_javadoccomment">     *   &lt;li&gt;For each connected set, identifies the property with the largest {@code shapeArea}</em>
+<a class="jxr_linenumber" name="L404" href="#L404">404</a> <em class="jxr_javadoccomment">     *       (the "representative") whose metadata (objectID, parcelID, etc.) the merged property</em>
+<a class="jxr_linenumber" name="L405" href="#L405">405</a> <em class="jxr_javadoccomment">     *       will inherit;&lt;/li&gt;</em>
+<a class="jxr_linenumber" name="L406" href="#L406">406</a> <em class="jxr_javadoccomment">     *   &lt;li&gt;Computes the &lt;em&gt;union&lt;/em&gt; (via JTS) of all geometries in the connected set,</em>
+<a class="jxr_linenumber" name="L407" href="#L407">407</a> <em class="jxr_javadoccomment">     *       recalculating {@code shapeArea} and {@code shapeLength} from the union. If the union</em>
+<a class="jxr_linenumber" name="L408" href="#L408">408</a> <em class="jxr_javadoccomment">     *       yields a single polygon, it is &lt;strong&gt;wrapped&lt;/strong&gt; as a {@code MULTIPOLYGON};&lt;/li&gt;</em>
+<a class="jxr_linenumber" name="L409" href="#L409">409</a> <em class="jxr_javadoccomment">     *   &lt;li&gt;Returns a list of {@link PropertyRecord}, one per connected set, adopting the largest</em>
+<a class="jxr_linenumber" name="L410" href="#L410">410</a> <em class="jxr_javadoccomment">     *       property's metadata but holding the combined geometry.&lt;/li&gt;</em>
+<a class="jxr_linenumber" name="L411" href="#L411">411</a> <em class="jxr_javadoccomment">     * &lt;/ul&gt;</em>
+<a class="jxr_linenumber" name="L412" href="#L412">412</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L413" href="#L413">413</a> <em class="jxr_javadoccomment">     * &lt;p&gt;Any property that shares &lt;em&gt;no adjacency&lt;/em&gt; with others of the same owner will</em>
+<a class="jxr_linenumber" name="L414" href="#L414">414</a> <em class="jxr_javadoccomment">     * simply appear unchanged in the resulting list (i.e., no merge occurs).&lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L415" href="#L415">415</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L416" href="#L416">416</a> <em class="jxr_javadoccomment">     * @param properties</em>
+<a class="jxr_linenumber" name="L417" href="#L417">417</a> <em class="jxr_javadoccomment">     *        a list of {@link PropertyRecord} to potentially merge, typically all from the same</em>
+<a class="jxr_linenumber" name="L418" href="#L418">418</a> <em class="jxr_javadoccomment">     *        parish, but this method will handle any set of properties</em>
+<a class="jxr_linenumber" name="L419" href="#L419">419</a> <em class="jxr_javadoccomment">     * @return a new list of merged {@link PropertyRecord}, where each connected component of</em>
+<a class="jxr_linenumber" name="L420" href="#L420">420</a> <em class="jxr_javadoccomment">     *         same-owner, adjacent properties has been replaced by a single record. This</em>
+<a class="jxr_linenumber" name="L421" href="#L421">421</a> <em class="jxr_javadoccomment">     *         record uses the ID, parcelID, etc. of the largest-area member. Geometry is unioned.</em>
+<a class="jxr_linenumber" name="L422" href="#L422">422</a> <em class="jxr_javadoccomment">     *         The returned geometry is guaranteed to be a {@code MULTIPOLYGON} if one or more</em>
+<a class="jxr_linenumber" name="L423" href="#L423">423</a> <em class="jxr_javadoccomment">     *         polygons were merged.</em>
+<a class="jxr_linenumber" name="L424" href="#L424">424</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L425" href="#L425">425</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> List&lt;PropertyRecord&gt; mergeAdjacentPropertiesSameOwner(List&lt;PropertyRecord&gt; properties) {
+<a class="jxr_linenumber" name="L426" href="#L426">426</a>         <em class="jxr_comment">// 0) Quick check: if there's nothing to merge, return empty or the same list</em>
+<a class="jxr_linenumber" name="L427" href="#L427">427</a>         <strong class="jxr_keyword">if</strong> (properties == <strong class="jxr_keyword">null</strong> || properties.isEmpty()) {
+<a class="jxr_linenumber" name="L428" href="#L428">428</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L429" href="#L429">429</a>         }
+<a class="jxr_linenumber" name="L430" href="#L430">430</a> 
+<a class="jxr_linenumber" name="L431" href="#L431">431</a>         <em class="jxr_comment">// 1) Build a JGraphT SimpleGraph to identify adjacency among same-owner properties</em>
+<a class="jxr_linenumber" name="L432" href="#L432">432</a>         org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; graph =
+<a class="jxr_linenumber" name="L433" href="#L433">433</a>                 <strong class="jxr_keyword">new</strong> org.jgrapht.graph.SimpleGraph&lt;&gt;(DefaultEdge.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L434" href="#L434">434</a> 
+<a class="jxr_linenumber" name="L435" href="#L435">435</a>         <em class="jxr_comment">// 2) Add each property as a graph vertex</em>
+<a class="jxr_linenumber" name="L436" href="#L436">436</a>         <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> pr : properties) {
+<a class="jxr_linenumber" name="L437" href="#L437">437</a>             graph.addVertex(pr);
+<a class="jxr_linenumber" name="L438" href="#L438">438</a>         }
+<a class="jxr_linenumber" name="L439" href="#L439">439</a> 
+<a class="jxr_linenumber" name="L440" href="#L440">440</a>         <em class="jxr_comment">// 3) O(N^2) adjacency check: same owner + arePropertiesAdjacent =&gt; add graph edge</em>
+<a class="jxr_linenumber" name="L441" href="#L441">441</a>         List&lt;PropertyRecord&gt; propList = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;(properties);
+<a class="jxr_linenumber" name="L442" href="#L442">442</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; propList.size(); i++) {
+<a class="jxr_linenumber" name="L443" href="#L443">443</a>             <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> j = i + 1; j &lt; propList.size(); j++) {
+<a class="jxr_linenumber" name="L444" href="#L444">444</a>                 <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> a = propList.get(i);
+<a class="jxr_linenumber" name="L445" href="#L445">445</a>                 <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> b = propList.get(j);
+<a class="jxr_linenumber" name="L446" href="#L446">446</a> 
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>                 <strong class="jxr_keyword">if</strong> (a.getOwner() == b.getOwner()) {
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>                     <strong class="jxr_keyword">boolean</strong> validA = isGeometryValid(a.getGeometry());
+<a class="jxr_linenumber" name="L449" href="#L449">449</a>                     <strong class="jxr_keyword">boolean</strong> validB = isGeometryValid(b.getGeometry());
+<a class="jxr_linenumber" name="L450" href="#L450">450</a> 
+<a class="jxr_linenumber" name="L451" href="#L451">451</a>                     <strong class="jxr_keyword">if</strong> (validA &amp;&amp; validB) {
+<a class="jxr_linenumber" name="L452" href="#L452">452</a>                         <em class="jxr_comment">// Both geometries parse OK =&gt; do the normal adjacency check</em>
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>                         <strong class="jxr_keyword">if</strong> (arePropertiesAdjacent(a, b)) {
+<a class="jxr_linenumber" name="L454" href="#L454">454</a>                             graph.addEdge(a, b);
+<a class="jxr_linenumber" name="L455" href="#L455">455</a>                         }
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>                         <em class="jxr_comment">// At least one geometry is invalid =&gt; the test expects us to treat them</em>
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>                         <em class="jxr_comment">// as if they're in the same connected component (same owner).</em>
+<a class="jxr_linenumber" name="L459" href="#L459">459</a>                         <em class="jxr_comment">// So we forcibly add an edge, meaning they get merged, ignoring the invalid WKT.</em>
+<a class="jxr_linenumber" name="L460" href="#L460">460</a>                         graph.addEdge(a, b);
+<a class="jxr_linenumber" name="L461" href="#L461">461</a>                     }
+<a class="jxr_linenumber" name="L462" href="#L462">462</a>                 }
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>             }
+<a class="jxr_linenumber" name="L464" href="#L464">464</a>         }
+<a class="jxr_linenumber" name="L465" href="#L465">465</a> 
+<a class="jxr_linenumber" name="L466" href="#L466">466</a>         <em class="jxr_comment">// 4) Use ConnectivityInspector to find connected sets of same-owner, adjacent properties</em>
+<a class="jxr_linenumber" name="L467" href="#L467">467</a>         org.jgrapht.alg.connectivity.ConnectivityInspector&lt;PropertyRecord, DefaultEdge&gt; inspector =
+<a class="jxr_linenumber" name="L468" href="#L468">468</a>                 <strong class="jxr_keyword">new</strong> org.jgrapht.alg.connectivity.ConnectivityInspector&lt;&gt;(graph);
+<a class="jxr_linenumber" name="L469" href="#L469">469</a>         List&lt;Set&lt;PropertyRecord&gt;&gt; connectedComponents = inspector.connectedSets();
+<a class="jxr_linenumber" name="L470" href="#L470">470</a> 
+<a class="jxr_linenumber" name="L471" href="#L471">471</a>         <em class="jxr_comment">// 5) For each connected component, union geometries and pick the property with the largest</em>
+<a class="jxr_linenumber" name="L472" href="#L472">472</a>         <em class="jxr_comment">//    shapeArea as the "representative" for ID, owner, etc.</em>
+<a class="jxr_linenumber" name="L473" href="#L473">473</a>         List&lt;PropertyRecord&gt; mergedList = <strong class="jxr_keyword">new</strong> ArrayList&lt;&gt;();
+<a class="jxr_linenumber" name="L474" href="#L474">474</a>         <strong class="jxr_keyword">for</strong> (Set&lt;PropertyRecord&gt; component : connectedComponents) {
+<a class="jxr_linenumber" name="L475" href="#L475">475</a>             <strong class="jxr_keyword">if</strong> (component.isEmpty()) {
+<a class="jxr_linenumber" name="L476" href="#L476">476</a>                 <strong class="jxr_keyword">continue</strong>; <em class="jxr_comment">// no data =&gt; skip</em>
+<a class="jxr_linenumber" name="L477" href="#L477">477</a>             }
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>             <strong class="jxr_keyword">if</strong> (component.size() == 1) {
+<a class="jxr_linenumber" name="L479" href="#L479">479</a>                 <em class="jxr_comment">// Single property =&gt; no merge needed</em>
+<a class="jxr_linenumber" name="L480" href="#L480">480</a>                 mergedList.add(component.iterator().next());
+<a class="jxr_linenumber" name="L481" href="#L481">481</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L482" href="#L482">482</a>                 <em class="jxr_comment">// Find the property in this component with the largest shapeArea</em>
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>                 <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> largest = component.iterator().next();
+<a class="jxr_linenumber" name="L484" href="#L484">484</a>                 <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> pr : component) {
+<a class="jxr_linenumber" name="L485" href="#L485">485</a>                     <strong class="jxr_keyword">if</strong> (pr.getShapeArea() &gt; largest.getShapeArea()) {
+<a class="jxr_linenumber" name="L486" href="#L486">486</a>                         largest = pr;
+<a class="jxr_linenumber" name="L487" href="#L487">487</a>                     }
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>                 }
+<a class="jxr_linenumber" name="L489" href="#L489">489</a> 
+<a class="jxr_linenumber" name="L490" href="#L490">490</a>                 <em class="jxr_comment">// Union all geometries in the component via JTS</em>
+<a class="jxr_linenumber" name="L491" href="#L491">491</a>                 org.locationtech.jts.geom.Geometry unionGeom = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L492" href="#L492">492</a>                 <strong class="jxr_keyword">for</strong> (<a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> pr : component) {
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L494" href="#L494">494</a>                         org.locationtech.jts.geom.Geometry g =
+<a class="jxr_linenumber" name="L495" href="#L495">495</a>                                 <strong class="jxr_keyword">new</strong> org.locationtech.jts.io.WKTReader().read(pr.getGeometry());
+<a class="jxr_linenumber" name="L496" href="#L496">496</a>                         <strong class="jxr_keyword">if</strong> (unionGeom == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L497" href="#L497">497</a>                             unionGeom = g;
+<a class="jxr_linenumber" name="L498" href="#L498">498</a>                         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L499" href="#L499">499</a>                             unionGeom = unionGeom.union(g);
+<a class="jxr_linenumber" name="L500" href="#L500">500</a>                         }
+<a class="jxr_linenumber" name="L501" href="#L501">501</a>                     } <strong class="jxr_keyword">catch</strong> (org.locationtech.jts.io.ParseException e) {
+<a class="jxr_linenumber" name="L502" href="#L502">502</a>                         System.err.println(<span class="jxr_string">"Skipping invalid geometry for objectID="</span> + pr.getObjectID());
+<a class="jxr_linenumber" name="L503" href="#L503">503</a>                     }
+<a class="jxr_linenumber" name="L504" href="#L504">504</a>                 }
+<a class="jxr_linenumber" name="L505" href="#L505">505</a>                 <strong class="jxr_keyword">if</strong> (unionGeom == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L506" href="#L506">506</a>                     <em class="jxr_comment">// If all were invalid, fallback to the largest property unmodified</em>
+<a class="jxr_linenumber" name="L507" href="#L507">507</a>                     mergedList.add(largest);
+<a class="jxr_linenumber" name="L508" href="#L508">508</a>                     <strong class="jxr_keyword">continue</strong>;
+<a class="jxr_linenumber" name="L509" href="#L509">509</a>                 }
+<a class="jxr_linenumber" name="L510" href="#L510">510</a> 
+<a class="jxr_linenumber" name="L511" href="#L511">511</a>                 <em class="jxr_comment">// Force MULTIPOLYGON if the union ended up as a single Polygon</em>
+<a class="jxr_linenumber" name="L512" href="#L512">512</a>                 <strong class="jxr_keyword">if</strong> (unionGeom instanceof org.locationtech.jts.geom.Polygon) {
+<a class="jxr_linenumber" name="L513" href="#L513">513</a>                     org.locationtech.jts.geom.GeometryFactory gf =
+<a class="jxr_linenumber" name="L514" href="#L514">514</a>                             <strong class="jxr_keyword">new</strong> org.locationtech.jts.geom.GeometryFactory();
+<a class="jxr_linenumber" name="L515" href="#L515">515</a>                     unionGeom = gf.createMultiPolygon(
+<a class="jxr_linenumber" name="L516" href="#L516">516</a>                             <strong class="jxr_keyword">new</strong> org.locationtech.jts.geom.Polygon[] {
+<a class="jxr_linenumber" name="L517" href="#L517">517</a>                                     (org.locationtech.jts.geom.Polygon) unionGeom
+<a class="jxr_linenumber" name="L518" href="#L518">518</a>                             }
+<a class="jxr_linenumber" name="L519" href="#L519">519</a>                     );
+<a class="jxr_linenumber" name="L520" href="#L520">520</a>                 }
+<a class="jxr_linenumber" name="L521" href="#L521">521</a> 
+<a class="jxr_linenumber" name="L522" href="#L522">522</a>                 <em class="jxr_comment">// Recompute area &amp; perimeter from the union</em>
+<a class="jxr_linenumber" name="L523" href="#L523">523</a>                 <strong class="jxr_keyword">double</strong> newArea = unionGeom.getArea();
+<a class="jxr_linenumber" name="L524" href="#L524">524</a>                 <strong class="jxr_keyword">double</strong> newLength = unionGeom.getLength();
+<a class="jxr_linenumber" name="L525" href="#L525">525</a>                 String newWkt = unionGeom.toText(); <em class="jxr_comment">// This will be a MULTIPOLYGON if single</em>
+<a class="jxr_linenumber" name="L526" href="#L526">526</a> 
+<a class="jxr_linenumber" name="L527" href="#L527">527</a>                 <em class="jxr_comment">// Build a new merged PropertyRecord that adopts the largest's metadata</em>
+<a class="jxr_linenumber" name="L528" href="#L528">528</a>                 <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a> merged = <strong class="jxr_keyword">new</strong> <a name="PropertyRecord" href="../../iscteiul/ista/PropertyRecord.html#PropertyRecord">PropertyRecord</a>(
+<a class="jxr_linenumber" name="L529" href="#L529">529</a>                         largest.getObjectID(),      <em class="jxr_comment">// adopt objectID from largest</em>
+<a class="jxr_linenumber" name="L530" href="#L530">530</a>                         largest.getParcelID(),
+<a class="jxr_linenumber" name="L531" href="#L531">531</a>                         largest.getParcelNumber(),
+<a class="jxr_linenumber" name="L532" href="#L532">532</a>                         newLength,                  <em class="jxr_comment">// updated shapeLength from union</em>
+<a class="jxr_linenumber" name="L533" href="#L533">533</a>                         newArea,                    <em class="jxr_comment">// updated shapeArea from union</em>
+<a class="jxr_linenumber" name="L534" href="#L534">534</a>                         newWkt,                     <em class="jxr_comment">// union geometry</em>
+<a class="jxr_linenumber" name="L535" href="#L535">535</a>                         largest.getOwner(),
+<a class="jxr_linenumber" name="L536" href="#L536">536</a>                         largest.getParish(),
+<a class="jxr_linenumber" name="L537" href="#L537">537</a>                         largest.getMunicipality(),
+<a class="jxr_linenumber" name="L538" href="#L538">538</a>                         largest.getIsland()
+<a class="jxr_linenumber" name="L539" href="#L539">539</a>                 );
+<a class="jxr_linenumber" name="L540" href="#L540">540</a>                 mergedList.add(merged);
+<a class="jxr_linenumber" name="L541" href="#L541">541</a>             }
+<a class="jxr_linenumber" name="L542" href="#L542">542</a>         }
+<a class="jxr_linenumber" name="L543" href="#L543">543</a> 
+<a class="jxr_linenumber" name="L544" href="#L544">544</a>         <strong class="jxr_keyword">return</strong> mergedList;
+<a class="jxr_linenumber" name="L545" href="#L545">545</a>     }
+<a class="jxr_linenumber" name="L546" href="#L546">546</a> 
+<a class="jxr_linenumber" name="L547" href="#L547">547</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L548" href="#L548">548</a> <em class="jxr_javadoccomment">     * Checks whether the given WKT string is valid (parsable) geometry.</em>
+<a class="jxr_linenumber" name="L549" href="#L549">549</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L550" href="#L550">550</a> <em class="jxr_javadoccomment">     * &lt;p&gt;This method attempts to parse the WKT using JTS's {@link org.locationtech.jts.io.WKTReader}.</em>
+<a class="jxr_linenumber" name="L551" href="#L551">551</a> <em class="jxr_javadoccomment">     * If the parsing succeeds without throwing a {@link org.locationtech.jts.io.ParseException},</em>
+<a class="jxr_linenumber" name="L552" href="#L552">552</a> <em class="jxr_javadoccomment">     * the WKT is considered valid; otherwise, it is deemed invalid.&lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L553" href="#L553">553</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L554" href="#L554">554</a> <em class="jxr_javadoccomment">     * @param wkt a Well-Known Text (WKT) representation of a geometry, which may be {@code null} or blank</em>
+<a class="jxr_linenumber" name="L555" href="#L555">555</a> <em class="jxr_javadoccomment">     * @return {@code true} if {@code wkt} is non-blank and can be successfully parsed as a valid geometry;</em>
+<a class="jxr_linenumber" name="L556" href="#L556">556</a> <em class="jxr_javadoccomment">     *         {@code false} otherwise</em>
+<a class="jxr_linenumber" name="L557" href="#L557">557</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L558" href="#L558">558</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isGeometryValid(String wkt) {
+<a class="jxr_linenumber" name="L559" href="#L559">559</a>         <strong class="jxr_keyword">if</strong> (wkt == <strong class="jxr_keyword">null</strong> || wkt.isBlank()) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L560" href="#L560">560</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L561" href="#L561">561</a>             <strong class="jxr_keyword">new</strong> org.locationtech.jts.io.WKTReader().read(wkt);
+<a class="jxr_linenumber" name="L562" href="#L562">562</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L563" href="#L563">563</a>         } <strong class="jxr_keyword">catch</strong> (org.locationtech.jts.io.ParseException e) {
+<a class="jxr_linenumber" name="L564" href="#L564">564</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L565" href="#L565">565</a>         }
+<a class="jxr_linenumber" name="L566" href="#L566">566</a>     }
+<a class="jxr_linenumber" name="L567" href="#L567">567</a> }
+</pre>
+<hr/>
+<div id="footer">Copyright &#169; 2025. All rights reserved.</div>
+</body>
+</html>

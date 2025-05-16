@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PostGISUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">PostGISUtils.java</span></div><h1>PostGISUtils.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+/**
+ * &lt;h2&gt;PostGISUtils &amp;ndash; Bulk Loader and Neighbor Finder&lt;/h2&gt;
+ *
+ * &lt;p&gt;This &lt;strong&gt;static-only&lt;/strong&gt; helper class provides functionality to:&lt;/p&gt;
+ * &lt;ol&gt;
+ *   &lt;li&gt;&lt;strong&gt;Insert&lt;/strong&gt; a list of {@link PropertyRecord} objects into a PostGIS table
+ *       (&lt;em&gt;see {@link #TABLE_SCHEMA}&lt;/em&gt; and {@link #TABLE_NAME} for details).&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Query&lt;/strong&gt; that table for neighboring parcels using
+ *       standard PostGIS spatial predicates:
+ *       &lt;ul&gt;
+ *         &lt;li&gt;{@code ST_Touches}&lt;/li&gt;
+ *         &lt;li&gt;{@code ST_Intersects}&lt;/li&gt;
+ *         &lt;li&gt;{@code ST_Overlaps}&lt;/li&gt;
+ *         &lt;li&gt;{@code ST_Contains}&lt;/li&gt;
+ *       &lt;/ul&gt;
+ *   &lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;h3&gt;Pre-requisites&lt;/h3&gt;
+ * &lt;ol&gt;
+ *   &lt;li&gt;&lt;strong&gt;PostGIS Extension&lt;/strong&gt;:
+ *       {@code CREATE EXTENSION IF NOT EXISTS postgis;}&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Table Definition&lt;/strong&gt;: The table
+ *       {@value #TABLE_NAME} (adjust schema if not using {@code public}):
+ *       &lt;pre&gt;{@code
+ *       CREATE TABLE IF NOT EXISTS public.properties (
+ *           objectid      INT PRIMARY KEY,
+ *           parcelid      BIGINT,
+ *           parcelnumber  BIGINT,
+ *           shapelength   DOUBLE PRECISION,
+ *           shapearea     DOUBLE PRECISION,
+ *           geometry      geometry(MultiPolygon,4326),
+ *           owner         INT,
+ *           parish        TEXT,
+ *           municipality  TEXT,
+ *           island        TEXT
+ *       );
+ *       }&lt;/pre&gt;
+ *   &lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;Adjust the constants {@link #TABLE_SCHEMA}, {@link #TABLE_NAME},
+ * and the connection details if your database settings differ.&lt;/p&gt;
+ *
+ * &lt;p&gt;&lt;strong&gt;Author:&lt;/strong&gt; Your Name (2025)&lt;/p&gt;
+ */
+public final class PostGISUtils {
+
+    /** The schema containing the &quot;properties&quot; table. Adjust as needed. */
+    private static final String TABLE_SCHEMA = &quot;public&quot;;
+
+    /** Fully-qualified table name &quot;&lt;schema&gt;.properties&quot;. */
+    private static final String TABLE_NAME = TABLE_SCHEMA + &quot;.properties&quot;;
+
+    /**
+     * A JDBC URL pointing to the &lt;em&gt;postgres&lt;/em&gt; database with the given
+     * schema set as the &lt;em&gt;search_path&lt;/em&gt;. Update host/port/db name if needed.
+     */
+    private static final String JDBC_URL =
+            &quot;jdbc:postgresql://localhost:5432/postgres?currentSchema=&quot; + TABLE_SCHEMA;
+
+    /**
+     * Postgres user and password, which must have the privileges necessary
+     * to create and query geometry columns in the specified schema.
+     */
+    private static final String DB_USER = &quot;postgres&quot;;
+    private static final String DB_PASS = &quot;ES2425GI&quot;;
+
+    /** SLF4J Logger for this class. */
+<span class="fc" id="L80">    private static final Logger LOGGER = LoggerFactory.getLogger(PostGISUtils.class);</span>
+
+    /**
+     * A constant referencing the property in your DB that represents
+     * &quot;Funchal (Sé)&quot;. Adjust as needed if you have a different objectID.
+     */
+    private static final int FUNCHAL_SE_OBJECT_ID = 11074;
+
+    /**
+     * Private constructor prevents instantiation. This is a static utility class.
+     *
+     * @throws AssertionError always (if called by reflection or otherwise)
+     */
+<span class="nc" id="L93">    private PostGISUtils() {</span>
+<span class="nc" id="L94">        throw new AssertionError(&quot;Utility class - do not instantiate.&quot;);</span>
+    }
+
+    /**
+     * Inserts each {@link PropertyRecord} into the PostGIS table {@value #TABLE_NAME}.
+     * The geometry column is populated by invoking {@code ST_GeomFromText(?::text, 4326)}.
+     *
+     * &lt;p&gt;Records that lack a non-empty {@link PropertyRecord#getGeometry() geometry} field
+     * are skipped with a warning. Adjust logic if you need to handle those cases differently.&lt;/p&gt;
+     *
+     * @param records a list of {@link PropertyRecord} objects to be inserted
+     *                (each must have valid WKT geometry in {@link PropertyRecord#getGeometry()})
+     */
+    public static void insertPropertyRecords(List&lt;PropertyRecord&gt; records) {
+<span class="fc" id="L108">        final String sql =</span>
+                &quot;INSERT INTO &quot; + TABLE_NAME + &quot; (&quot; +
+                        &quot;    objectid, parcelid, parcelnumber, shapelength, shapearea,&quot; +
+                        &quot;    geometry, owner, parish, municipality, island&quot; +
+                        &quot;) VALUES (&quot; +
+                        &quot;    ?, ?, ?, ?, ?,&quot; +
+                        &quot;    ST_GeomFromText(?::text,4326), ?, ?, ?, ?&quot; +
+                        &quot;)&quot;;
+
+<span class="fc" id="L117">        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L118">             PreparedStatement ps = conn.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L120">            int inserted = 0;</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            for (PropertyRecord record : records) {</span>
+                // If geometry is missing or blank, skip the row.
+<span class="fc" id="L123">                String wkt = record.getGeometry();</span>
+<span class="pc bpc" id="L124" title="2 of 4 branches missed.">                if (wkt == null || wkt.isBlank()) {</span>
+<span class="nc" id="L125">                    LOGGER.warn(&quot;Skipping objectID={} due to null/empty geometry&quot;,</span>
+<span class="nc" id="L126">                            record.getObjectID());</span>
+<span class="nc" id="L127">                    continue;</span>
+                }
+
+                // Fill the placeholders in the PreparedStatement.
+<span class="fc" id="L131">                ps.setInt(1,    record.getObjectID());</span>
+<span class="fc" id="L132">                ps.setLong(2,   record.getParcelID());</span>
+<span class="fc" id="L133">                ps.setLong(3,   record.getParcelNumber());</span>
+<span class="fc" id="L134">                ps.setDouble(4, record.getShapeLength());</span>
+<span class="fc" id="L135">                ps.setDouble(5, record.getShapeArea());</span>
+<span class="fc" id="L136">                ps.setString(6, wkt); // geometry =&gt; ST_GeomFromText(?::text,4326)</span>
+<span class="fc" id="L137">                ps.setInt(7,    record.getOwner());</span>
+<span class="fc" id="L138">                ps.setString(8, record.getParish());</span>
+<span class="fc" id="L139">                ps.setString(9, record.getMunicipality());</span>
+<span class="fc" id="L140">                ps.setString(10,record.getIsland());</span>
+
+<span class="fc" id="L142">                ps.addBatch();</span>
+<span class="fc" id="L143">                inserted++;</span>
+<span class="fc" id="L144">            }</span>
+
+            // Execute all batched inserts at once.
+<span class="fc" id="L147">            ps.executeBatch();</span>
+<span class="fc" id="L148">            LOGGER.info(&quot;Inserted {} rows into {}&quot;, inserted, TABLE_NAME);</span>
+
+<span class="nc" id="L150">        } catch (SQLException e) {</span>
+<span class="nc" id="L151">            LOGGER.error(&quot;Bulk insert into {} failed.&quot;, TABLE_NAME, e);</span>
+<span class="fc" id="L152">        }</span>
+<span class="fc" id="L153">    }</span>
+
+    /**
+     * Merges (UNION) every parcel that belongs to a given owner into a single
+     * MultiPolygon and returns it as WKT text.
+     *
+     * @param ownerId  the owner column value
+     * @return         WKT of the merged geometry, or {@code null} if the owner
+     *                 has no rows (or on error)
+     */
+    public static String unionByOwner(int ownerId) {
+<span class="fc" id="L164">        final String sql =</span>
+                &quot;SELECT ST_AsText(ST_Union(geometry)) AS merged &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME +
+                        &quot; WHERE owner = ?&quot;;
+
+<span class="fc" id="L169">        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L170">             PreparedStatement ps = c.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L172">            ps.setInt(1, ownerId);</span>
+<span class="fc" id="L173">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">                return (rs.next() ? rs.getString(&quot;merged&quot;) : null);</span>
+            }
+<span class="nc" id="L176">        } catch (SQLException e) {</span>
+<span class="nc" id="L177">            LOGGER.error(&quot;ST_Union failed for owner={}&quot;, ownerId, e);</span>
+<span class="nc" id="L178">            return null;</span>
+        }
+    }
+
+    /**
+     * Returns the geometric intersection of two parcels as WKT.
+     *
+     * @param objectIdA  first parcel’s objectID
+     * @param objectIdB  second parcel’s objectID
+     * @return           WKT of the intersection polygon, or {@code null} if the
+     *                   geometries do not intersect (or on error)
+     */
+    public static String intersection(int objectIdA, int objectIdB) {
+<span class="fc" id="L191">        final String sql =</span>
+                &quot;SELECT ST_AsText(ST_Intersection(a.geometry, b.geometry)) AS inter &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME + &quot; a, &quot; + TABLE_NAME + &quot; b &quot; +
+                        &quot; WHERE a.objectid = ? AND b.objectid = ?&quot;;
+
+<span class="fc" id="L196">        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L197">             PreparedStatement ps = c.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L199">            ps.setInt(1, objectIdA);</span>
+<span class="fc" id="L200">            ps.setInt(2, objectIdB);</span>
+<span class="fc" id="L201">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">                return (rs.next() ? rs.getString(&quot;inter&quot;) : null);</span>
+            }
+<span class="nc" id="L204">        } catch (SQLException e) {</span>
+<span class="nc" id="L205">            LOGGER.error(&quot;ST_Intersection failed ({} vs {})&quot;, objectIdA, objectIdB, e);</span>
+<span class="nc" id="L206">            return null;</span>
+        }
+    }
+
+    /**
+     * Returns the shortest planar distance between two parcel geometries
+     * (in the unit of the layer’s SRID – for EPSG : 4326 that is metres
+     * when your data are in a projected CRS, otherwise degrees).
+     *
+     * @param objectIdA first parcel’s {@code objectid}
+     * @param objectIdB second parcel’s {@code objectid}
+     * @return distance as {@code double}, or {@code null} if one id is missing
+     *         or a DB error occurs
+     */
+    public static Double distance(int objectIdA, int objectIdB) {
+<span class="fc" id="L221">        final String sql =</span>
+                &quot;SELECT ST_Distance(a.geometry, b.geometry) AS dist &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME + &quot; a, &quot; + TABLE_NAME + &quot; b &quot; +
+                        &quot; WHERE a.objectid = ? AND b.objectid = ?&quot;;
+
+<span class="fc" id="L226">        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L227">             PreparedStatement ps = c.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L229">            ps.setInt(1, objectIdA);</span>
+<span class="fc" id="L230">            ps.setInt(2, objectIdB);</span>
+
+<span class="fc" id="L232">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                return rs.next() ? rs.getDouble(&quot;dist&quot;) : null;</span>
+            }
+<span class="nc" id="L235">        } catch (SQLException e) {</span>
+<span class="nc" id="L236">            LOGGER.error(&quot;ST_Distance failed ({} ↔ {})&quot;, objectIdA, objectIdB, e);</span>
+<span class="nc" id="L237">            return null;</span>
+        }
+    }
+
+    /**
+     * Convenience wrapper around {@code ST_DWithin}.  It answers the question
+     * “are the two parcels closer than the given distance?”.
+     *
+     * @param objectIdA  first parcel
+     * @param objectIdB  second parcel
+     * @param distance   threshold distance in the unit of the SRID
+     * @return           {@code true} / {@code false}, or {@code null} on error
+     */
+    public static Boolean withinDistance(int objectIdA, int objectIdB, double distance) {
+<span class="fc" id="L251">        final String sql =</span>
+                &quot;SELECT ST_DWithin(a.geometry, b.geometry, ?) AS ok &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME + &quot; a, &quot; + TABLE_NAME + &quot; b &quot; +
+                        &quot; WHERE a.objectid = ? AND b.objectid = ?&quot;;
+
+<span class="fc" id="L256">        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L257">             PreparedStatement ps = c.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L259">            ps.setDouble(1, distance);</span>
+<span class="fc" id="L260">            ps.setInt(2, objectIdA);</span>
+<span class="fc" id="L261">            ps.setInt(3, objectIdB);</span>
+
+<span class="fc" id="L263">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="pc bpc" id="L264" title="1 of 2 branches missed.">                return rs.next() ? rs.getBoolean(&quot;ok&quot;) : null;</span>
+            }
+<span class="nc" id="L266">        } catch (SQLException e) {</span>
+<span class="nc" id="L267">            LOGGER.error(&quot;ST_DWithin failed ({} ↔ {}, d={})&quot;,</span>
+<span class="nc" id="L268">                    objectIdA, objectIdB, distance, e);</span>
+<span class="nc" id="L269">            return null;</span>
+        }
+    }
+
+    /**
+     * Computes the shortest planar distance between the given property (by {@code objectId})
+     * and the &quot;Funchal (Sé)&quot; property in the database with {@link #FUNCHAL_SE_OBJECT_ID}.
+     * &lt;p&gt;
+     * Internally calls {@link #distance(int, int)}, which returns {@code null} if
+     * either parcel doesn’t exist or on DB error. If your data is in EPSG:4326, this
+     * distance is in degrees. For meters, your geometry must be in a projected CRS.
+     *
+     * @param objectId the ID of the parcel whose distance to Funchal we want
+     * @return the distance (in the layer’s SRID units) from {@code objectId} to #11074,
+     *         or {@code null} if the row is missing or an error occurs
+     */
+    public static Double distanceToFunchal(int objectId) {
+<span class="fc" id="L286">        return distance(objectId, FUNCHAL_SE_OBJECT_ID);</span>
+    }
+
+    /**
+     * Calculates the planar area of a parcel, using
+     * {@code ST_Area(geometry)} in the database.
+     *
+     * @param objectId the parcel’s {@code objectid}
+     * @return         the area in square units of the layer’s SRID,
+     *                 or {@code null} if the row is missing / DB error
+     */
+    public static Double area(int objectId) {
+<span class="fc" id="L298">        final String sql =</span>
+                &quot;SELECT ST_Area(geometry) AS a &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME +
+                        &quot; WHERE objectid = ?&quot;;
+
+<span class="fc" id="L303">        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L304">             PreparedStatement ps = c.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L306">            ps.setInt(1, objectId);</span>
+<span class="fc" id="L307">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="pc bpc" id="L308" title="1 of 2 branches missed.">                return rs.next() ? rs.getDouble(&quot;a&quot;) : null;</span>
+            }
+<span class="nc" id="L310">        } catch (SQLException e) {</span>
+<span class="nc" id="L311">            LOGGER.error(&quot;ST_Area failed (objectID={})&quot;, objectId, e);</span>
+<span class="nc" id="L312">            return null;</span>
+        }
+    }
+
+    /**
+     * Computes the centroid of a parcel geometry and returns
+     * the point as WKT text (e.g.&amp;nbsp;{@code POINT(x y)}).
+     *
+     * @param objectId the parcel’s {@code objectid}
+     * @return         WKT of the centroid point, or {@code null} if not found / error
+     */
+    public static String centroid(int objectId) {
+<span class="fc" id="L324">        final String sql =</span>
+                &quot;SELECT ST_AsText(ST_Centroid(geometry)) AS c &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME +
+                        &quot; WHERE objectid = ?&quot;;
+
+<span class="fc" id="L329">        try (Connection c = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L330">             PreparedStatement ps = c.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L332">            ps.setInt(1, objectId);</span>
+<span class="fc" id="L333">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="pc bpc" id="L334" title="1 of 2 branches missed.">                return rs.next() ? rs.getString(&quot;c&quot;) : null;</span>
+            }
+<span class="nc" id="L336">        } catch (SQLException e) {</span>
+<span class="nc" id="L337">            LOGGER.error(&quot;ST_Centroid failed (objectID={})&quot;, objectId, e);</span>
+<span class="nc" id="L338">            return null;</span>
+        }
+    }
+
+    /**
+     * Finds all parcels in the database that &lt;em&gt;touch&lt;/em&gt; (share a boundary
+     * but do not overlap) the parcel whose {@code objectID} is given.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that touch the reference parcel
+     */
+    public static List&lt;PropertyRecord&gt; findTouching(int objectId) {
+<span class="fc" id="L350">        return queryNeighbours(objectId, &quot;ST_Touches&quot;);</span>
+    }
+
+    /**
+     * Finds all parcels that &lt;em&gt;intersect&lt;/em&gt; (share any point) the parcel
+     * whose {@code objectID} is given.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that intersect the reference parcel
+     */
+    public static List&lt;PropertyRecord&gt; findIntersecting(int objectId) {
+<span class="fc" id="L361">        return queryNeighbours(objectId, &quot;ST_Intersects&quot;);</span>
+    }
+
+    /**
+     * Finds all parcels that &lt;em&gt;overlap&lt;/em&gt; the parcel whose {@code objectID}
+     * is given. Overlapping implies partial interior intersection but not full
+     * containment.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that overlap the reference parcel
+     */
+    public static List&lt;PropertyRecord&gt; findOverlapping(int objectId) {
+<span class="fc" id="L373">        return queryNeighbours(objectId, &quot;ST_Overlaps&quot;);</span>
+    }
+
+    /**
+     * Finds all parcels that are &lt;em&gt;contained within&lt;/em&gt; the geometry of
+     * the parcel whose {@code objectID} is given. This uses {@code ST_Contains(A,B)},
+     * meaning A (the reference) fully encloses B.
+     *
+     * @param objectId the reference parcel's ID
+     * @return a list of {@link PropertyRecord} that lie inside the reference parcel
+     */
+    public static List&lt;PropertyRecord&gt; findContained(int objectId) {
+<span class="fc" id="L385">        return queryNeighbours(objectId, &quot;ST_Contains&quot;);</span>
+    }
+
+    /**
+     * A generic method to find the &quot;neighboring&quot; parcels (rows) in the database
+     * that satisfy {@code postgisFn(a.geometry, b.geometry)=TRUE} for a given
+     * reference {@code objectId}. The table is self-joined as 'a' and 'b'.
+     *
+     * @param objectId  the reference parcel's ID
+     * @param postgisFn the name of the spatial function (e.g., &quot;ST_Touches&quot;)
+     * @return a list of matching neighbors from the DB
+     */
+    private static List&lt;PropertyRecord&gt; queryNeighbours(int objectId, String postgisFn) {
+<span class="fc" id="L398">        final String sql =</span>
+                &quot;SELECT b.objectid, b.parcelid, b.parcelnumber, b.shapelength, b.shapearea,&quot; +
+                        &quot;       ST_AsText(b.geometry) AS geometry,&quot; +
+                        &quot;       b.owner, b.parish, b.municipality, b.island &quot; +
+                        &quot;  FROM &quot; + TABLE_NAME + &quot; a &quot; +
+                        &quot;  JOIN &quot; + TABLE_NAME + &quot; b &quot; +
+                        &quot;    ON &quot; + postgisFn + &quot;(a.geometry, b.geometry)&quot; +
+                        &quot;   AND a.objectid &lt;&gt; b.objectid &quot; +
+                        &quot; WHERE a.objectid = ?&quot;;
+
+<span class="fc" id="L408">        List&lt;PropertyRecord&gt; result = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L410">        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);</span>
+<span class="fc" id="L411">             PreparedStatement ps = conn.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L413">            ps.setInt(1, objectId);</span>
+
+<span class="fc" id="L415">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="fc bfc" id="L416" title="All 2 branches covered.">                while (rs.next()) {</span>
+<span class="fc" id="L417">                    result.add(mapRowToPropertyRecord(rs));</span>
+                }
+            }
+<span class="nc" id="L420">        } catch (SQLException e) {</span>
+<span class="nc" id="L421">            LOGGER.error(&quot;Neighbour query failed (function={}, objectID={})&quot;,</span>
+<span class="nc" id="L422">                    postgisFn, objectId, e);</span>
+<span class="fc" id="L423">        }</span>
+<span class="fc" id="L424">        return result;</span>
+    }
+
+    /**
+     * Maps the columns of a {@link ResultSet} row into a {@link PropertyRecord}.
+     *
+     * @param rs the ResultSet positioned at a valid row
+     * @return a new {@link PropertyRecord} constructed from row data
+     * @throws SQLException if any column is missing or invalid
+     */
+    private static PropertyRecord mapRowToPropertyRecord(ResultSet rs) throws SQLException {
+<span class="fc" id="L435">        return new PropertyRecord(</span>
+<span class="fc" id="L436">                rs.getInt   (&quot;objectid&quot;),</span>
+<span class="fc" id="L437">                rs.getLong  (&quot;parcelid&quot;),</span>
+<span class="fc" id="L438">                rs.getLong  (&quot;parcelnumber&quot;),</span>
+<span class="fc" id="L439">                rs.getDouble(&quot;shapelength&quot;),</span>
+<span class="fc" id="L440">                rs.getDouble(&quot;shapearea&quot;),</span>
+<span class="fc" id="L441">                rs.getString(&quot;geometry&quot;),</span>
+<span class="fc" id="L442">                rs.getInt   (&quot;owner&quot;),</span>
+<span class="fc" id="L443">                rs.getString(&quot;parish&quot;),</span>
+<span class="fc" id="L444">                rs.getString(&quot;municipality&quot;),</span>
+<span class="fc" id="L445">                rs.getString(&quot;island&quot;)</span>
+        );
+    }
+
+    /**
+     * Minimal command-line demonstration:
+     * &lt;ol&gt;
+     *   &lt;li&gt;Reads the CSV (via {@link CSVFileReader}) into memory.&lt;/li&gt;
+     *   &lt;li&gt;(Optional) calls {@link #insertPropertyRecords(List)} exactly once
+     *       to populate the database table.&lt;/li&gt;
+     *   &lt;li&gt;Prompts for an &lt;code&gt;objectID&lt;/code&gt; and prints neighbors for four
+     *       standard predicates:
+     *       {@code ST_Touches}, {@code ST_Intersects}, {@code ST_Overlaps}, {@code ST_Contains}.&lt;/li&gt;
+     * &lt;/ol&gt;
+     *
+     * &lt;p&gt;Adapt or remove if you have a different application entry point.&lt;/p&gt;
+     *
+     * @param args ignored
+     */
+    public static void main(String[] args) {
+
+        // 1) Read CSV
+<span class="nc" id="L467">        List&lt;PropertyRecord&gt; rows = new CSVFileReader()</span>
+<span class="nc" id="L468">                .importData(&quot;/Madeira-Moodle-1.2.csv&quot;);</span>
+<span class="nc" id="L469">        LOGGER.info(&quot;CSV rows read: {}&quot;, rows.size());</span>
+
+        // 2) Optionally, uncomment once to populate the table
+        // insertPropertyRecords(rows);
+
+        // 3) Interactive neighbor queries
+<span class="nc" id="L475">        try (Scanner sc = new Scanner(System.in)) {</span>
+            while (true) {
+<span class="nc" id="L477">                System.out.print(&quot;\nObjectID to inspect (0 = quit): &quot;);</span>
+<span class="nc" id="L478">                int id = sc.nextInt();</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">                if (id == 0) {</span>
+<span class="nc" id="L480">                    break;</span>
+                }
+<span class="nc" id="L482">                printResults(&quot;TOUCHING&quot;,      findTouching(id));</span>
+<span class="nc" id="L483">                printResults(&quot;INTERSECTING&quot;,  findIntersecting(id));</span>
+<span class="nc" id="L484">                printResults(&quot;OVERLAPPING&quot;,   findOverlapping(id));</span>
+<span class="nc" id="L485">                printResults(&quot;CONTAINED&quot;,     findContained(id));</span>
+
+<span class="nc" id="L487">                System.out.print(&quot;Another objectID to intersect with &quot; + id + &quot; (0=skip): &quot;);</span>
+<span class="nc" id="L488">                int other = sc.nextInt();</span>
+<span class="nc bnc" id="L489" title="All 2 branches missed.">                if (other != 0) {</span>
+<span class="nc" id="L490">                    String inter = intersection(id, other);</span>
+<span class="nc bnc" id="L491" title="All 2 branches missed.">                    System.out.println(&quot;Intersection WKT: &quot; + (inter == null ? &quot;(none)&quot; : inter));</span>
+                }
+
+<span class="nc" id="L494">                System.out.print(&quot;Owner id to UNION (0=skip): &quot;);</span>
+<span class="nc" id="L495">                int owner = sc.nextInt();</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">                if (owner != 0) {</span>
+<span class="nc" id="L497">                    String merged = unionByOwner(owner);</span>
+<span class="nc" id="L498">                    System.out.println(&quot;Union for owner &quot; + owner + &quot;: &quot; +</span>
+<span class="nc bnc" id="L499" title="All 2 branches missed.">                            (merged == null ? &quot;(no rows / error)&quot; : merged));</span>
+                }
+
+<span class="nc" id="L502">                System.out.print(&quot;Second objectID to measure distance to &quot; + id + &quot; (0=skip): &quot;);</span>
+<span class="nc" id="L503">                int distId = sc.nextInt();</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">                if (distId != 0) {</span>
+<span class="nc" id="L505">                    Double distance = distance(id, distId);</span>
+<span class="nc" id="L506">                    System.out.println(&quot;Distance = &quot; + distance + &quot; meters.&quot;);</span>
+
+<span class="nc" id="L508">                    System.out.print(&quot;Threshold d for ST_DWithin (meters): &quot;);</span>
+<span class="nc" id="L509">                    double d = sc.nextDouble();</span>
+<span class="nc" id="L510">                    Boolean near = withinDistance(id, distId, d);</span>
+<span class="nc" id="L511">                    System.out.println(&quot;Within &quot; + d + &quot; m? &quot; + near);</span>
+                }
+
+<span class="nc" id="L514">                System.out.print(&quot;Show area &amp; centroid for &quot; + id + &quot; (y/N)? &quot;);</span>
+<span class="nc bnc" id="L515" title="All 2 branches missed.">                if (sc.next().equalsIgnoreCase(&quot;y&quot;)) {</span>
+<span class="nc" id="L516">                    Double a = area(id);</span>
+<span class="nc" id="L517">                    String c = centroid(id);</span>
+<span class="nc" id="L518">                    System.out.println(&quot;Area      = &quot; + a);</span>
+<span class="nc" id="L519">                    System.out.println(&quot;Centroid  = &quot; + c);</span>
+                }
+<span class="nc" id="L521">            }</span>
+        }
+<span class="nc" id="L523">    }</span>
+
+    /**
+     * Prints a list of {@link PropertyRecord} object IDs to the console,
+     * preceded by a user-supplied label.
+     *
+     * @param label a short descriptive label (e.g. &quot;TOUCHING&quot;)
+     * @param list  a list of matching parcels
+     */
+    private static void printResults(String label, List&lt;PropertyRecord&gt; list) {
+<span class="nc" id="L533">        System.out.println('\n' + label + &quot; parcels: &quot; +</span>
+<span class="nc bnc" id="L534" title="All 2 branches missed.">                (list.isEmpty() ? &quot;(none)&quot; : list.size()));</span>
+<span class="nc" id="L535">        list.forEach(p -&gt; System.out.println(&quot;  — objectID=&quot; + p.getObjectID()));</span>
+<span class="nc" id="L536">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

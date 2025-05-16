@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AppUI.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">AppUI.java</span></div><h1>AppUI.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * A Swing-based user interface for the ES-Project-TerritoryManagement application.
+ *
+ * &lt;p&gt;This UI displays:
+ * &lt;ul&gt;
+ *   &lt;li&gt;Two dropdowns: one for distinct parishes and one for distinct municipalities.&lt;/li&gt;
+ *   &lt;li&gt;Two radio buttons to select whether to focus on &quot;Parish&quot; or &quot;Municipality&quot; (default = parish).&lt;/li&gt;
+ *   &lt;li&gt;Six buttons:
+ *       &lt;ol&gt;
+ *         &lt;li&gt;&lt;strong&gt;Show Properties&lt;/strong&gt; (Req #1)&lt;/li&gt;
+ *         &lt;li&gt;&lt;strong&gt;Properties Adjacency&lt;/strong&gt; (Req #2)&lt;/li&gt;
+ *         &lt;li&gt;&lt;strong&gt;Owner Adjacency&lt;/strong&gt; (Req #3)&lt;/li&gt;
+ *         &lt;li&gt;&lt;strong&gt;Compute Average Area&lt;/strong&gt; (Req #4)&lt;/li&gt;
+ *         &lt;li&gt;&lt;strong&gt;Compute Average Area by Owner&lt;/strong&gt; (Req #5)&lt;/li&gt;
+ *         &lt;li&gt;&lt;strong&gt;Suggest Property Swaps&lt;/strong&gt; (Req #6) &amp;mdash; now implemented&lt;/li&gt;
+ *       &lt;/ol&gt;
+ *       &lt;em&gt;
+ *         &quot;Show Properties&quot;, &quot;Properties Adjacency&quot;, &quot;Owner Adjacency&quot;,
+ *         &quot;Compute Average Area&quot;, &quot;Compute Average Area by Owner&quot;,
+ *         and &quot;Suggest Property Swaps&quot;
+ *         have logic implemented.
+ *       &lt;/em&gt;
+ *   &lt;/li&gt;
+ *   &lt;li&gt;A text area ({@code JTextArea}) for output logs/results.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;strong&gt;Usage Example:&lt;/strong&gt;&lt;/p&gt;
+ * &lt;pre&gt;{@code
+ *   // In App.main(...) after CSV data is loaded:
+ *   AppUI.showUI();
+ * }&lt;/pre&gt;
+ */
+public class AppUI extends JFrame {
+
+    // ============== Combo boxes ==============
+    /** Combo box for parish selection. */
+    private JComboBox&lt;String&gt; parishComboBox;
+
+    /** Combo box for municipality selection. */
+    private JComboBox&lt;String&gt; municipalityComboBox;
+
+    // ============== Radio buttons ==============
+    /** Radio button for filtering by parish. */
+    private JRadioButton parishRadioButton;
+
+    /** Radio button for filtering by municipality. */
+    private JRadioButton municipalityRadioButton;
+
+    // ============== Buttons ==============
+    /** Button to show properties (Req #1). */
+    private JButton showPropertiesButton;
+
+    /** Button to compute adjacency among properties (Req #2). */
+    private JButton propertiesAdjacencyButton;
+
+    /** Button to compute adjacency among owners (Req #3). */
+    private JButton ownerAdjacencyButton;
+
+    /** Button to compute average area of properties (Req #4). */
+    private JButton computeAverageAreaButton;
+
+    /** Button to compute average area by merging same-owner adjacent props (Req #5). */
+    private JButton computeAverageAreaByOwnerButton;
+
+    /** Button to suggest property swaps (Req #6). */
+    private JButton suggestPropertySwapsButton;
+
+    // ============== Output area ==============
+    /** A text area to display results or logs to the user. */
+    private JTextArea outputTextArea;
+
+    /**
+     * Constructs the UI, populating the combo boxes for parishes and municipalities
+     * from the data loaded in {@link App#getPropertyRecords()}, and setting up
+     * two radio buttons for choosing either parish or municipality scope.
+     * &lt;p&gt;
+     * Also creates six buttons: Show Properties, Properties Adjacency,
+     * Owner Adjacency, Compute Average Area, Compute Average Area by Owner,
+     * and Suggest Property Swaps. Now all six have logic implemented.
+     */
+    public AppUI() {
+<span class="fc" id="L93">        super(&quot;Territory Management Application&quot;);</span>
+
+        // Retrieve property records from the App class
+<span class="fc" id="L96">        List&lt;PropertyRecord&gt; propertyRecords = App.getPropertyRecords();</span>
+
+        // Distinct parishes &amp; municipalities
+<span class="fc" id="L99">        Set&lt;String&gt; distinctParishes = PropertyUtils.getDistinctParishes(propertyRecords);</span>
+<span class="fc" id="L100">        Set&lt;String&gt; distinctMunicipalities = PropertyUtils.getDistinctMunicipalities(propertyRecords);</span>
+
+        // Convert sets to lists for combo box models
+<span class="fc" id="L103">        List&lt;String&gt; parishList = new ArrayList&lt;&gt;(distinctParishes);</span>
+<span class="fc" id="L104">        List&lt;String&gt; muniList = new ArrayList&lt;&gt;(distinctMunicipalities);</span>
+
+        // =================== TOP PANEL ===================
+<span class="fc" id="L107">        JPanel topPanel = new JPanel();</span>
+<span class="fc" id="L108">        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));</span>
+
+        // ============= LINE 1 (combo + radio) =============
+<span class="fc" id="L111">        JPanel line1Panel = new JPanel(new FlowLayout(FlowLayout.LEFT));</span>
+
+<span class="fc" id="L113">        line1Panel.add(new JLabel(&quot;Select Parish:&quot;));</span>
+<span class="fc" id="L114">        parishComboBox = new JComboBox&lt;&gt;(parishList.toArray(new String[0]));</span>
+<span class="fc" id="L115">        line1Panel.add(parishComboBox);</span>
+
+<span class="fc" id="L117">        line1Panel.add(new JLabel(&quot;Select Municipality:&quot;));</span>
+<span class="fc" id="L118">        municipalityComboBox = new JComboBox&lt;&gt;(muniList.toArray(new String[0]));</span>
+<span class="fc" id="L119">        line1Panel.add(municipalityComboBox);</span>
+
+<span class="fc" id="L121">        parishRadioButton = new JRadioButton(&quot;Parish&quot;, true);</span>
+<span class="fc" id="L122">        municipalityRadioButton = new JRadioButton(&quot;Municipality&quot;);</span>
+
+<span class="fc" id="L124">        ButtonGroup bg = new ButtonGroup();</span>
+<span class="fc" id="L125">        bg.add(parishRadioButton);</span>
+<span class="fc" id="L126">        bg.add(municipalityRadioButton);</span>
+
+<span class="fc" id="L128">        line1Panel.add(parishRadioButton);</span>
+<span class="fc" id="L129">        line1Panel.add(municipalityRadioButton);</span>
+
+        // ============= LINE 2 (buttons) =============
+<span class="fc" id="L132">        JPanel line2Panel = new JPanel(new FlowLayout(FlowLayout.LEFT));</span>
+
+<span class="fc" id="L134">        showPropertiesButton = new JButton(&quot;Show Properties&quot;);</span>
+<span class="fc" id="L135">        propertiesAdjacencyButton = new JButton(&quot;Properties Adjacency&quot;);</span>
+<span class="fc" id="L136">        ownerAdjacencyButton = new JButton(&quot;Owner Adjacency&quot;);</span>
+<span class="fc" id="L137">        computeAverageAreaButton = new JButton(&quot;Compute Average Area&quot;);</span>
+<span class="fc" id="L138">        computeAverageAreaByOwnerButton = new JButton(&quot;Compute Average Area by Owner&quot;);</span>
+<span class="fc" id="L139">        suggestPropertySwapsButton = new JButton(&quot;Suggest Property Swaps&quot;);</span>
+
+<span class="fc" id="L141">        line2Panel.add(showPropertiesButton);</span>
+<span class="fc" id="L142">        line2Panel.add(propertiesAdjacencyButton);</span>
+<span class="fc" id="L143">        line2Panel.add(ownerAdjacencyButton);</span>
+<span class="fc" id="L144">        line2Panel.add(computeAverageAreaButton);</span>
+<span class="fc" id="L145">        line2Panel.add(computeAverageAreaByOwnerButton);</span>
+<span class="fc" id="L146">        line2Panel.add(suggestPropertySwapsButton);</span>
+
+<span class="fc" id="L148">        topPanel.add(line1Panel);</span>
+<span class="fc" id="L149">        topPanel.add(line2Panel);</span>
+
+        // =================== CENTER PANEL (Output) ===================
+<span class="fc" id="L152">        outputTextArea = new JTextArea(40, 60);</span>
+<span class="fc" id="L153">        outputTextArea.setEditable(false);</span>
+
+<span class="fc" id="L155">        JScrollPane scrollPane = new JScrollPane(</span>
+                outputTextArea,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS
+        );
+
+        // Layout: top panel at NORTH, scroll pane at CENTER
+<span class="fc" id="L162">        setLayout(new BorderLayout());</span>
+<span class="fc" id="L163">        add(topPanel, BorderLayout.NORTH);</span>
+<span class="fc" id="L164">        add(scrollPane, BorderLayout.CENTER);</span>
+
+        // Window settings
+<span class="fc" id="L167">        pack();</span>
+<span class="fc" id="L168">        setLocationRelativeTo(null);</span>
+<span class="fc" id="L169">        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);</span>
+
+        // ============= Attach Action Listeners =============
+<span class="pc" id="L172">        showPropertiesButton.addActionListener(e -&gt; handleShowProperties());</span>
+<span class="pc" id="L173">        propertiesAdjacencyButton.addActionListener(e -&gt; handlePropertiesAdjacency());</span>
+<span class="pc" id="L174">        ownerAdjacencyButton.addActionListener(e -&gt; handleOwnerAdjacency());</span>
+<span class="pc" id="L175">        computeAverageAreaButton.addActionListener(e -&gt; handleComputeAverageArea());</span>
+<span class="pc" id="L176">        computeAverageAreaByOwnerButton.addActionListener(e -&gt; handleComputeAverageAreaByOwner());</span>
+
+        // NEW: suggest property swaps
+<span class="pc" id="L179">        suggestPropertySwapsButton.addActionListener(e -&gt; handleSuggestPropertySwaps());</span>
+<span class="fc" id="L180">    }</span>
+
+    /**
+     * Handles the &quot;Show Properties&quot; button click (Req #1).
+     * &lt;p&gt;Based on the selected radio button (Parish or Municipality),
+     * retrieves the chosen item from the respective combo box,
+     * filters the property list, and displays the results in
+     * the {@code outputTextArea}.
+     */
+    private void handleShowProperties() {
+<span class="nc" id="L190">        outputTextArea.setText(&quot;&quot;);</span>
+
+<span class="nc" id="L192">        boolean isParishSelected = parishRadioButton.isSelected();</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        String selectedValue = isParishSelected</span>
+<span class="nc" id="L194">                ? (String) parishComboBox.getSelectedItem()</span>
+<span class="nc" id="L195">                : (String) municipalityComboBox.getSelectedItem();</span>
+
+<span class="nc bnc" id="L197" title="All 4 branches missed.">        if (selectedValue == null || selectedValue.isBlank()) {</span>
+<span class="nc" id="L198">            outputTextArea.append(&quot;No valid selection.\n&quot;);</span>
+<span class="nc" id="L199">            return;</span>
+        }
+
+<span class="nc" id="L202">        List&lt;PropertyRecord&gt; allRecords = App.getPropertyRecords();</span>
+<span class="nc bnc" id="L203" title="All 4 branches missed.">        if (allRecords == null || allRecords.isEmpty()) {</span>
+<span class="nc" id="L204">            outputTextArea.append(&quot;No property records loaded.\n&quot;);</span>
+<span class="nc" id="L205">            return;</span>
+        }
+
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        List&lt;PropertyRecord&gt; filtered = isParishSelected</span>
+<span class="nc" id="L209">                ? PropertyUtils.findByParish(allRecords, selectedValue)</span>
+<span class="nc" id="L210">                : PropertyUtils.findByMunicipality(allRecords, selectedValue);</span>
+
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        if (filtered.isEmpty()) {</span>
+<span class="nc" id="L213">            outputTextArea.append(&quot;No properties found for &quot; + selectedValue + &quot;.\n&quot;);</span>
+        } else {
+<span class="nc" id="L215">            outputTextArea.append(&quot;Properties in &quot; + selectedValue + &quot;:\n&quot;);</span>
+<span class="nc" id="L216">            filtered.forEach(pr -&gt; outputTextArea.append(</span>
+<span class="nc" id="L217">                    &quot;ObjectID=&quot; + pr.getObjectID()</span>
+<span class="nc" id="L218">                            + &quot;, ParcelID=&quot; + pr.getParcelID()</span>
+<span class="nc" id="L219">                            + &quot;, ParcelNumber=&quot; + pr.getParcelNumber()</span>
+<span class="nc" id="L220">                            + &quot;, Perimeter[km]=&quot; + String.format(&quot;%.2f&quot;, pr.getShapeLength())</span>
+<span class="nc" id="L221">                            + &quot;, Area[ha]=&quot; + String.format(&quot;%.2f&quot;, pr.getShapeArea())</span>
+<span class="nc" id="L222">                            + &quot;, Owner=&quot; + pr.getOwner()</span>
+<span class="nc" id="L223">                            + &quot;, Parish=&quot; + pr.getParish()</span>
+<span class="nc" id="L224">                            + &quot;, Municipality=&quot; + pr.getMunicipality()</span>
+<span class="nc" id="L225">                            + &quot;, Island=&quot; + pr.getIsland()</span>
+                            + &quot;\n&quot;
+            ));
+        }
+<span class="nc" id="L229">    }</span>
+
+    /**
+     * Handles the &quot;Properties Adjacency&quot; button click (Req #2).
+     * &lt;p&gt;Determines the selected region, filters the property list,
+     * builds a {@link Graph} of properties, and lists each property's
+     * neighbors in the {@code outputTextArea}.
+     */
+    private void handlePropertiesAdjacency() {
+<span class="nc" id="L238">        outputTextArea.setText(&quot;&quot;);</span>
+
+<span class="nc" id="L240">        boolean isParishSelected = parishRadioButton.isSelected();</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">        String selectedValue = isParishSelected</span>
+<span class="nc" id="L242">                ? (String) parishComboBox.getSelectedItem()</span>
+<span class="nc" id="L243">                : (String) municipalityComboBox.getSelectedItem();</span>
+
+<span class="nc bnc" id="L245" title="All 4 branches missed.">        if (selectedValue == null || selectedValue.isBlank()) {</span>
+<span class="nc" id="L246">            outputTextArea.append(&quot;No valid selection for adjacency.\n&quot;);</span>
+<span class="nc" id="L247">            return;</span>
+        }
+
+<span class="nc" id="L250">        List&lt;PropertyRecord&gt; allRecords = App.getPropertyRecords();</span>
+<span class="nc bnc" id="L251" title="All 4 branches missed.">        if (allRecords == null || allRecords.isEmpty()) {</span>
+<span class="nc" id="L252">            outputTextArea.append(&quot;No property records loaded.\n&quot;);</span>
+<span class="nc" id="L253">            return;</span>
+        }
+
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        List&lt;PropertyRecord&gt; subset = isParishSelected</span>
+<span class="nc" id="L257">                ? PropertyUtils.findByParish(allRecords, selectedValue)</span>
+<span class="nc" id="L258">                : PropertyUtils.findByMunicipality(allRecords, selectedValue);</span>
+
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (subset.isEmpty()) {</span>
+<span class="nc" id="L261">            outputTextArea.append(&quot;No properties found for &quot; + selectedValue + &quot;.\n&quot;);</span>
+<span class="nc" id="L262">            return;</span>
+        }
+
+        // Build the adjacency graph
+<span class="nc" id="L266">        Graph propertyGraph = new Graph(subset);</span>
+
+        // For each property, list its neighbors
+<span class="nc bnc" id="L269" title="All 2 branches missed.">        for (PropertyRecord record : subset) {</span>
+<span class="nc" id="L270">            int objectID = record.getObjectID();</span>
+<span class="nc" id="L271">            List&lt;Graph.GraphNode&gt; neighbors = propertyGraph.getNeighbors(objectID);</span>
+
+<span class="nc bnc" id="L273" title="All 2 branches missed.">            if (neighbors.isEmpty()) {</span>
+<span class="nc" id="L274">                outputTextArea.append(&quot;Property ID=&quot; + objectID</span>
+<span class="nc" id="L275">                        + &quot; (Area[ha]=&quot; + String.format(&quot;%.2f&quot;, record.getShapeArea())</span>
+<span class="nc" id="L276">                        + &quot;, Owner=&quot; + record.getOwner()</span>
+                        + &quot;) has no neighbors.\n&quot;);
+            } else {
+<span class="nc" id="L279">                outputTextArea.append(&quot;Neighbors of Property ID=&quot; + objectID</span>
+<span class="nc" id="L280">                        + &quot; (Area[ha]=&quot; + String.format(&quot;%.2f&quot;, record.getShapeArea())</span>
+<span class="nc" id="L281">                        + &quot;, Owner=&quot; + record.getOwner() + &quot;):\n&quot;);</span>
+<span class="nc" id="L282">                neighbors.forEach(neighbor -&gt; outputTextArea.append(</span>
+<span class="nc" id="L283">                        &quot;  -&gt; objectID=&quot; + neighbor.getObjectID()</span>
+<span class="nc" id="L284">                                + &quot;, area[ha]=&quot; + String.format(&quot;%.2f&quot;, neighbor.getShapeArea())</span>
+<span class="nc" id="L285">                                + &quot;, owner=&quot; + neighbor.getOwner()</span>
+                                + &quot;\n&quot;
+                ));
+            }
+<span class="nc" id="L289">        }</span>
+<span class="nc" id="L290">    }</span>
+
+    /**
+     * Handles the &quot;Owner Adjacency&quot; button click (Req #3).
+     * &lt;p&gt;Determines which region is selected, filters the list,
+     * builds an {@link OwnerGraph}, and displays each owner's neighbors.
+     */
+    private void handleOwnerAdjacency() {
+<span class="nc" id="L298">        outputTextArea.setText(&quot;&quot;);</span>
+
+<span class="nc" id="L300">        boolean isParishSelected = parishRadioButton.isSelected();</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        String selectedValue = isParishSelected</span>
+<span class="nc" id="L302">                ? (String) parishComboBox.getSelectedItem()</span>
+<span class="nc" id="L303">                : (String) municipalityComboBox.getSelectedItem();</span>
+
+<span class="nc bnc" id="L305" title="All 4 branches missed.">        if (selectedValue == null || selectedValue.isBlank()) {</span>
+<span class="nc" id="L306">            outputTextArea.append(&quot;No valid selection for owner adjacency.\n&quot;);</span>
+<span class="nc" id="L307">            return;</span>
+        }
+
+<span class="nc" id="L310">        List&lt;PropertyRecord&gt; allRecords = App.getPropertyRecords();</span>
+<span class="nc bnc" id="L311" title="All 4 branches missed.">        if (allRecords == null || allRecords.isEmpty()) {</span>
+<span class="nc" id="L312">            outputTextArea.append(&quot;No property records loaded.\n&quot;);</span>
+<span class="nc" id="L313">            return;</span>
+        }
+
+        // Filter
+<span class="nc bnc" id="L317" title="All 2 branches missed.">        List&lt;PropertyRecord&gt; subset = isParishSelected</span>
+<span class="nc" id="L318">                ? PropertyUtils.findByParish(allRecords, selectedValue)</span>
+<span class="nc" id="L319">                : PropertyUtils.findByMunicipality(allRecords, selectedValue);</span>
+
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        if (subset.isEmpty()) {</span>
+<span class="nc" id="L322">            outputTextArea.append(&quot;No properties found for &quot; + selectedValue + &quot;.\n&quot;);</span>
+<span class="nc" id="L323">            return;</span>
+        }
+
+        // Build the owner graph
+<span class="nc" id="L327">        OwnerGraph ownerGraph = new OwnerGraph();</span>
+<span class="nc" id="L328">        ownerGraph.buildGraph(subset);</span>
+
+<span class="nc" id="L330">        Set&lt;Integer&gt; owners = ownerGraph.getOwners();</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        if (owners.isEmpty()) {</span>
+<span class="nc" id="L332">            outputTextArea.append(&quot;No owners found in &quot; + selectedValue + &quot;.\n&quot;);</span>
+<span class="nc" id="L333">            return;</span>
+        }
+
+<span class="nc" id="L336">        outputTextArea.append(&quot;Owner adjacency for &quot; + selectedValue + &quot;:\n&quot;);</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">        for (Integer owner : owners) {</span>
+<span class="nc" id="L338">            Set&lt;Integer&gt; neighbors = ownerGraph.getNeighbors(owner);</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">            if (neighbors.isEmpty()) {</span>
+<span class="nc" id="L340">                outputTextArea.append(&quot;Owner &quot; + owner + &quot; has no adjacent owners.\n&quot;);</span>
+            } else {
+<span class="nc" id="L342">                outputTextArea.append(&quot;Owner &quot; + owner + &quot; is adjacent to owners: &quot; + neighbors + &quot;\n&quot;);</span>
+            }
+<span class="nc" id="L344">        }</span>
+<span class="nc" id="L345">    }</span>
+
+    /**
+     * Handles the &quot;Compute Average Area&quot; button click (Req #4).
+     * &lt;p&gt;Determines which region is selected, filters the list,
+     * then calls {@code PropertyUtils.calculateAverageArea(...)} and
+     * displays the result in the {@code outputTextArea}.
+     */
+    private void handleComputeAverageArea() {
+<span class="nc" id="L354">        outputTextArea.setText(&quot;&quot;);</span>
+
+<span class="nc" id="L356">        boolean isParishSelected = parishRadioButton.isSelected();</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">        String selectedValue = isParishSelected</span>
+<span class="nc" id="L358">                ? (String) parishComboBox.getSelectedItem()</span>
+<span class="nc" id="L359">                : (String) municipalityComboBox.getSelectedItem();</span>
+
+<span class="nc bnc" id="L361" title="All 4 branches missed.">        if (selectedValue == null || selectedValue.isBlank()) {</span>
+<span class="nc" id="L362">            outputTextArea.append(&quot;No valid selection for average area.\n&quot;);</span>
+<span class="nc" id="L363">            return;</span>
+        }
+
+<span class="nc" id="L366">        List&lt;PropertyRecord&gt; allRecords = App.getPropertyRecords();</span>
+<span class="nc bnc" id="L367" title="All 4 branches missed.">        if (allRecords == null || allRecords.isEmpty()) {</span>
+<span class="nc" id="L368">            outputTextArea.append(&quot;No property records loaded.\n&quot;);</span>
+<span class="nc" id="L369">            return;</span>
+        }
+
+        // Filter
+<span class="nc bnc" id="L373" title="All 2 branches missed.">        List&lt;PropertyRecord&gt; subset = isParishSelected</span>
+<span class="nc" id="L374">                ? PropertyUtils.findByParish(allRecords, selectedValue)</span>
+<span class="nc" id="L375">                : PropertyUtils.findByMunicipality(allRecords, selectedValue);</span>
+
+<span class="nc bnc" id="L377" title="All 2 branches missed.">        if (subset.isEmpty()) {</span>
+<span class="nc" id="L378">            outputTextArea.append(&quot;No properties found for &quot; + selectedValue + &quot;.\n&quot;);</span>
+<span class="nc" id="L379">            return;</span>
+        }
+
+        // Compute average
+<span class="nc" id="L383">        double averageArea = PropertyUtils.calculateAverageArea(subset);</span>
+
+        // Display
+<span class="nc" id="L386">        outputTextArea.append(&quot;Average area in &quot; + selectedValue</span>
+<span class="nc" id="L387">                + &quot; (no adjacency grouping) = &quot; + String.format(&quot;%.2f&quot;, averageArea) + &quot; [ha]\n&quot;);</span>
+<span class="nc" id="L388">    }</span>
+
+    /**
+     * Handles the &quot;Compute Average Area by Owner&quot; button click (Req #5).
+     * &lt;p&gt;Determines which region is selected, filters the list, merges
+     * adjacent properties (same owner), then calculates the average
+     * grouped area via
+     * {@code PropertyUtils.calculateAverageGroupedArea(...)} or similar.
+     * &lt;p&gt;We only show the grouped average area result, no comparison
+     * with ungrouped area is printed.
+     */
+    private void handleComputeAverageAreaByOwner() {
+<span class="nc" id="L400">        outputTextArea.setText(&quot;&quot;);</span>
+
+<span class="nc" id="L402">        boolean isParishSelected = parishRadioButton.isSelected();</span>
+<span class="nc bnc" id="L403" title="All 2 branches missed.">        String selectedValue = isParishSelected</span>
+<span class="nc" id="L404">                ? (String) parishComboBox.getSelectedItem()</span>
+<span class="nc" id="L405">                : (String) municipalityComboBox.getSelectedItem();</span>
+
+<span class="nc bnc" id="L407" title="All 4 branches missed.">        if (selectedValue == null || selectedValue.isBlank()) {</span>
+<span class="nc" id="L408">            outputTextArea.append(&quot;No valid selection for 'average area by owner'.\n&quot;);</span>
+<span class="nc" id="L409">            return;</span>
+        }
+
+        // Retrieve all records
+<span class="nc" id="L413">        List&lt;PropertyRecord&gt; allRecords = App.getPropertyRecords();</span>
+<span class="nc bnc" id="L414" title="All 4 branches missed.">        if (allRecords == null || allRecords.isEmpty()) {</span>
+<span class="nc" id="L415">            outputTextArea.append(&quot;No property records loaded.\n&quot;);</span>
+<span class="nc" id="L416">            return;</span>
+        }
+
+        // Filter by parish or municipality
+<span class="nc bnc" id="L420" title="All 2 branches missed.">        List&lt;PropertyRecord&gt; subset = isParishSelected</span>
+<span class="nc" id="L421">                ? PropertyUtils.findByParish(allRecords, selectedValue)</span>
+<span class="nc" id="L422">                : PropertyUtils.findByMunicipality(allRecords, selectedValue);</span>
+
+<span class="nc bnc" id="L424" title="All 2 branches missed.">        if (subset.isEmpty()) {</span>
+<span class="nc" id="L425">            outputTextArea.append(&quot;No properties found for &quot; + selectedValue + &quot;.\n&quot;);</span>
+<span class="nc" id="L426">            return;</span>
+        }
+
+        // Build a JGraphT-based property graph
+<span class="nc" id="L430">        PropertyGraph propertyGraph = new PropertyGraph();</span>
+<span class="nc" id="L431">        propertyGraph.buildGraph(subset);</span>
+
+        // JGraphT graph from the propertyGraph
+<span class="nc" id="L434">        org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; jgtGraph = propertyGraph.getGraph();</span>
+
+        // Now compute grouped area (owner-based adjacency)
+<span class="nc" id="L437">        double averageGroupedArea = PropertyUtils.calculateAverageGroupedArea(subset, jgtGraph);</span>
+
+        // Print only the grouped average
+<span class="nc" id="L440">        outputTextArea.append(&quot;Average area in &quot; + selectedValue + &quot; (grouped by owner adjacency) = &quot;</span>
+<span class="nc" id="L441">                + String.format(&quot;%.2f&quot;, averageGroupedArea) + &quot; [ha]\n&quot;);</span>
+<span class="nc" id="L442">    }</span>
+
+    /**
+     * Handles the &quot;Suggest Property Swaps&quot; button click (Req #6).
+     * &lt;p&gt;Determines which region is selected, filters the list, merges
+     * same-owner parcels, builds an adjacency graph of the merged
+     * properties, and uses {@link PropertySwapAdvisor#suggestSwaps}
+     * (with areaThreshold=0.1, maxSuggestions=10) to list potential swaps.
+     * &lt;p&gt;Prints each suggestion to the {@code outputTextArea}.
+     */
+    private void handleSuggestPropertySwaps() {
+<span class="nc" id="L453">        outputTextArea.setText(&quot;&quot;);</span>
+
+<span class="nc" id="L455">        boolean isParishSelected = parishRadioButton.isSelected();</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">        String selectedValue = isParishSelected</span>
+<span class="nc" id="L457">                ? (String) parishComboBox.getSelectedItem()</span>
+<span class="nc" id="L458">                : (String) municipalityComboBox.getSelectedItem();</span>
+
+<span class="nc bnc" id="L460" title="All 4 branches missed.">        if (selectedValue == null || selectedValue.isBlank()) {</span>
+<span class="nc" id="L461">            outputTextArea.append(&quot;No valid selection for property swaps.\n&quot;);</span>
+<span class="nc" id="L462">            return;</span>
+        }
+
+        // Retrieve all records
+<span class="nc" id="L466">        List&lt;PropertyRecord&gt; allRecords = App.getPropertyRecords();</span>
+<span class="nc bnc" id="L467" title="All 4 branches missed.">        if (allRecords == null || allRecords.isEmpty()) {</span>
+<span class="nc" id="L468">            outputTextArea.append(&quot;No property records loaded.\n&quot;);</span>
+<span class="nc" id="L469">            return;</span>
+        }
+
+        // Filter
+<span class="nc bnc" id="L473" title="All 2 branches missed.">        List&lt;PropertyRecord&gt; subset = isParishSelected</span>
+<span class="nc" id="L474">                ? PropertyUtils.findByParish(allRecords, selectedValue)</span>
+<span class="nc" id="L475">                : PropertyUtils.findByMunicipality(allRecords, selectedValue);</span>
+
+<span class="nc bnc" id="L477" title="All 2 branches missed.">        if (subset.isEmpty()) {</span>
+<span class="nc" id="L478">            outputTextArea.append(&quot;No properties found for &quot; + selectedValue + &quot;.\n&quot;);</span>
+<span class="nc" id="L479">            return;</span>
+        }
+
+        // 1) Merge same-owner adjacency
+<span class="nc" id="L483">        List&lt;PropertyRecord&gt; merged = PropertyMerger.mergeSameOwner(subset);</span>
+
+        // 2) Build adjacency among these merged properties
+<span class="nc" id="L486">        SimpleGraph&lt;PropertyRecord, DefaultEdge&gt; mergedGraph = MergedPropertyGraph.buildGraph(merged);</span>
+
+        // 3) Suggest swaps with areaThreshold=0.1 =&gt; up to 10 suggestions
+<span class="nc" id="L489">        List&lt;SwapSuggestion&gt; suggestions = PropertySwapAdvisor.suggestSwaps(mergedGraph, 0.1, 10);</span>
+
+        // 4) Print the suggestions
+<span class="nc bnc" id="L492" title="All 2 branches missed.">        if (suggestions.isEmpty()) {</span>
+<span class="nc" id="L493">            outputTextArea.append(&quot;No swap suggestions found in &quot; + selectedValue + &quot;.\n&quot;);</span>
+        } else {
+<span class="nc" id="L495">            outputTextArea.append(&quot;Swap suggestions for &quot; + selectedValue + &quot;:\n&quot;);</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">            for (SwapSuggestion s : suggestions) {</span>
+<span class="nc" id="L497">                outputTextArea.append(</span>
+<span class="nc" id="L498">                        String.format(&quot;- Swap: Property %d (owner=%d) &lt;--&gt; Property %d (owner=%d)%n&quot;</span>
+                                        + &quot;  benefit=%.3f, cost=%.3f, score=%.3f%n&quot;,
+<span class="nc" id="L500">                                s.getP1().getObjectID(), s.getP1().getOwner(),</span>
+<span class="nc" id="L501">                                s.getP2().getObjectID(), s.getP2().getOwner(),</span>
+<span class="nc" id="L502">                                s.getBenefit(), s.getCost(), s.getScore())</span>
+                );
+<span class="nc" id="L504">            }</span>
+        }
+<span class="nc" id="L506">    }</span>
+
+    /**
+     * Displays this UI on the Event Dispatch Thread.
+     * &lt;p&gt;
+     * Invoke this after loading data in the {@link App} class, for example:
+     * &lt;pre&gt;{@code
+     *   AppUI.showUI();
+     * }&lt;/pre&gt;
+     */
+    public static void showUI() {
+<span class="nc" id="L517">        SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L518">            AppUI ui = new AppUI();</span>
+<span class="nc" id="L519">            ui.setVisible(true);</span>
+<span class="nc" id="L520">        });</span>
+<span class="nc" id="L521">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PropertyUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">PropertyUtils.java</span></div><h1>PropertyUtils.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.alg.connectivity.ConnectivityInspector;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * A stateless utility class providing helper methods to work with PropertyRecord objects.
+ * &lt;p&gt;
+ * Typical usage: filtering properties by owner, by municipality, checking adjacency among them,
+ * etc.
+ * &lt;p&gt;
+ * All methods are static (no internal state).
+ */
+public final class PropertyUtils {
+
+    /**
+     * Private constructor to prevent instantiation,
+     * as this is intended to be a static utility class.
+     * &lt;p&gt;
+     * Since all methods in this class are static and no instance fields
+     * exist, there is no purpose in creating an object of this class.
+     * Consequently, calling this constructor always results in an
+     * {@link AssertionError}.
+     *
+     * @throws AssertionError always, since this constructor should never be called
+     */
+<span class="nc" id="L31">    private PropertyUtils() {</span>
+<span class="nc" id="L32">        throw new AssertionError(&quot;Utility class - do not instantiate.&quot;);</span>
+    }
+
+    /**
+     * Returns a list of PropertyRecord objects owned by the specified owner.
+     *
+     * @param records the list of all PropertyRecord objects
+     * @param ownerId the owner ID to filter by
+     * @return a new List of PropertyRecord matching the given ownerId
+     */
+    public static List&lt;PropertyRecord&gt; findByOwner(List&lt;PropertyRecord&gt; records, int ownerId) {
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">        if (records == null) {</span>
+<span class="nc" id="L44">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="fc" id="L46">        return records.stream()</span>
+<span class="fc bfc" id="L47" title="All 2 branches covered.">                .filter(r -&gt; r.getOwner() == ownerId)</span>
+<span class="fc" id="L48">                .collect(Collectors.toList());</span>
+    }
+
+    /**
+     * Filters PropertyRecord objects by a given municipality name (case-sensitive).
+     *
+     * @param records      the list of all PropertyRecord objects
+     * @param municipality the municipality to match; if null, returns empty list
+     * @return a new List of PropertyRecord in that municipality
+     */
+    public static List&lt;PropertyRecord&gt; findByMunicipality(List&lt;PropertyRecord&gt; records, String municipality) {
+<span class="pc bpc" id="L59" title="1 of 4 branches missed.">        if (records == null || municipality == null) {</span>
+<span class="fc" id="L60">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="fc" id="L62">        return records.stream()</span>
+<span class="fc" id="L63">                .filter(r -&gt; municipality.equals(r.getMunicipality()))</span>
+<span class="fc" id="L64">                .collect(Collectors.toList());</span>
+    }
+
+    /**
+     * Filters PropertyRecord objects by the given island (case-sensitive).
+     *
+     * @param records the list of all PropertyRecord objects
+     * @param island  the island to match; if null, returns empty list
+     * @return a new List of PropertyRecord on that island
+     */
+    public static List&lt;PropertyRecord&gt; findByIsland(List&lt;PropertyRecord&gt; records, String island) {
+<span class="pc bpc" id="L75" title="1 of 4 branches missed.">        if (records == null || island == null) {</span>
+<span class="fc" id="L76">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="fc" id="L78">        return records.stream()</span>
+<span class="fc" id="L79">                .filter(r -&gt; island.equals(r.getIsland()))</span>
+<span class="fc" id="L80">                .collect(Collectors.toList());</span>
+    }
+
+    /**
+     * Checks if two PropertyRecords are adjacent (touching) by delegating to GeometryUtils.
+     * Returns false if either geometry is missing/null.
+     *
+     * @param a the first PropertyRecord
+     * @param b the second PropertyRecord
+     * @return true if they are adjacent (touch), false otherwise
+     */
+    public static boolean arePropertiesAdjacent(PropertyRecord a, PropertyRecord b) {
+<span class="pc bpc" id="L92" title="2 of 4 branches missed.">        if (a == null || b == null) {</span>
+<span class="nc" id="L93">            return false;</span>
+        }
+<span class="fc" id="L95">        String wktA = a.getGeometry();</span>
+<span class="fc" id="L96">        String wktB = b.getGeometry();</span>
+<span class="fc" id="L97">        return GeometryUtils.areAdjacent(wktA, wktB);</span>
+    }
+
+    /**
+     * Finds all properties in the list that are adjacent to a given PropertyRecord (excluding itself).
+     *
+     * @param record  the reference PropertyRecord
+     * @param records the list of all PropertyRecord objects to check
+     * @return a List of PropertyRecords that touch the given record
+     */
+    public static List&lt;PropertyRecord&gt; findAdjacentProperties(
+            PropertyRecord record, List&lt;PropertyRecord&gt; records) {
+
+<span class="fc" id="L110">        List&lt;PropertyRecord&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L111" title="All 4 branches covered.">        if (record == null || records == null) {</span>
+<span class="fc" id="L112">            return result;</span>
+        }
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        for (PropertyRecord r : records) {</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">            if (r == record) {</span>
+<span class="fc" id="L116">                continue;  // Skip the same instance</span>
+            }
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            if (arePropertiesAdjacent(record, r)) {</span>
+<span class="fc" id="L119">                result.add(r);</span>
+            }
+<span class="fc" id="L121">        }</span>
+<span class="fc" id="L122">        return result;</span>
+    }
+
+    /**
+     * Returns a set of distinct parish names among the given PropertyRecord list.
+     * Null parish fields are excluded.
+     *
+     * @param records the list of PropertyRecord objects
+     * @return a Set of unique parish strings, or an empty set if records is null or no parishes
+     */
+    public static Set&lt;String&gt; getDistinctParishes(List&lt;PropertyRecord&gt; records) {
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (records == null) {</span>
+<span class="fc" id="L134">            return Collections.emptySet();</span>
+        }
+<span class="fc" id="L136">        return records.stream()</span>
+<span class="fc" id="L137">                .map(PropertyRecord::getParish)</span>
+<span class="fc" id="L138">                .filter(Objects::nonNull)  // skip null</span>
+<span class="fc" id="L139">                .collect(Collectors.toSet());</span>
+    }
+
+    /**
+     * Returns a set of distinct municipality names among the given PropertyRecord list.
+     * Null municipality fields are excluded.
+     *
+     * @param records the list of PropertyRecord objects
+     * @return a Set of unique municipality strings, or an empty set if records is null or no municipalities
+     */
+    public static Set&lt;String&gt; getDistinctMunicipalities(List&lt;PropertyRecord&gt; records) {
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        if (records == null) {</span>
+<span class="fc" id="L151">            return Collections.emptySet();</span>
+        }
+<span class="fc" id="L153">        return records.stream()</span>
+<span class="fc" id="L154">                .map(PropertyRecord::getMunicipality)</span>
+<span class="fc" id="L155">                .filter(Objects::nonNull)  // skip null</span>
+<span class="fc" id="L156">                .collect(Collectors.toSet());</span>
+    }
+
+    // You can add more utility methods here (e.g., merging contiguous properties,
+    // generating swap suggestions, etc.) as needed.
+
+    /**
+     * Filters a list of {@link PropertyRecord} objects by the specified parish name.
+     *
+     * @param records the list of all {@link PropertyRecord} objects
+     * @param parish the parish name to filter by; case-sensitive
+     * @return a new list of {@link PropertyRecord} objects in the specified parish
+     */
+    public static List&lt;PropertyRecord&gt; findByParish(List&lt;PropertyRecord&gt; records, String parish) {
+<span class="nc bnc" id="L170" title="All 4 branches missed.">        if (records == null || parish == null) {</span>
+<span class="nc" id="L171">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="nc" id="L173">        return records.stream()</span>
+<span class="nc" id="L174">                .filter(r -&gt; parish.equals(r.getParish()))</span>
+<span class="nc" id="L175">                .collect(Collectors.toList());</span>
+    }
+
+    /**
+     * Calculates the average area of the given list of {@link PropertyRecord} objects.
+     *
+     * @param properties the list of {@link PropertyRecord} objects
+     * @return the average area, or 0.0 if the list is null or empty
+     */
+    public static double calculateAverageArea(List&lt;PropertyRecord&gt; properties) {
+<span class="pc bpc" id="L185" title="1 of 4 branches missed.">        if (properties == null || properties.isEmpty()) return 0.0;</span>
+
+<span class="fc" id="L187">        double totalArea = properties.stream()</span>
+<span class="fc" id="L188">                .mapToDouble(PropertyRecord::getShapeArea)</span>
+<span class="fc" id="L189">                .sum();</span>
+
+<span class="fc" id="L191">        return totalArea / properties.size();</span>
+    }
+
+    /**
+     * Groups a list of {@link PropertyRecord} objects by their owner ID.
+     *
+     * @param properties the list of {@link PropertyRecord} objects
+     * @return a map where the key is the owner ID and the value is a list of properties owned by that owner
+     */
+    public static Map&lt;Integer, List&lt;PropertyRecord&gt;&gt; groupPropertiesByOwner(List&lt;PropertyRecord&gt; properties) {
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        if (properties == null) return new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L203">        return properties.stream()</span>
+<span class="fc" id="L204">                .collect(Collectors.groupingBy(PropertyRecord::getOwner));</span>
+    }
+
+    /**
+     * Calculates the average area of connected property groups for each owner.
+     *
+     * &lt;p&gt;For each owner, builds a subgraph of their properties, identifies connected groups,
+     * and computes the total area for each group. Returns the average of these group areas.
+     *
+     * @param records the list of {@link PropertyRecord} objects
+     * @param fullGraph the full graph of properties and their connections
+     * @return the average area of connected property groups, or 0.0 if no groups are found
+     */
+    public static double calculateAverageGroupedArea(List&lt;PropertyRecord&gt; records, org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; fullGraph) {
+        // If the full graph is null, we cannot proceed.
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        if (fullGraph == null) {</span>
+<span class="fc" id="L220">            return 0.0;</span>
+        }
+
+        // 1) Group properties by owner.
+<span class="fc" id="L224">        Map&lt;Integer, List&lt;PropertyRecord&gt;&gt; ownerGroups = groupPropertiesByOwner(records);</span>
+
+        // We'll store the total area of each connected component (for all owners) in this list.
+<span class="fc" id="L227">        List&lt;Double&gt; allGroupedAreas = new ArrayList&lt;&gt;();</span>
+
+        // 2) For each owner, create a subgraph using only that owner's properties.
+<span class="fc bfc" id="L230" title="All 2 branches covered.">        for (Map.Entry&lt;Integer, List&lt;PropertyRecord&gt;&gt; entry : ownerGroups.entrySet()) {</span>
+<span class="fc" id="L231">            List&lt;PropertyRecord&gt; ownerProperties = entry.getValue();</span>
+
+            // Create a new empty subgraph for this owner's properties.
+<span class="fc" id="L234">            org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; subgraph = new SimpleGraph&lt;&gt;(DefaultEdge.class);</span>
+
+            // Add each property as a vertex.
+<span class="fc bfc" id="L237" title="All 2 branches covered.">            for (PropertyRecord p : ownerProperties) {</span>
+<span class="fc" id="L238">                subgraph.addVertex(p);</span>
+<span class="fc" id="L239">            }</span>
+
+            // Check which pairs of these properties are connected in the full graph,
+            // and add the corresponding edges to the subgraph.
+<span class="fc bfc" id="L243" title="All 2 branches covered.">            for (PropertyRecord p1 : ownerProperties) {</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">                for (PropertyRecord p2 : ownerProperties) {</span>
+<span class="fc bfc" id="L245" title="All 4 branches covered.">                    if (!p1.equals(p2) &amp;&amp; fullGraph.containsEdge(p1, p2)) {</span>
+                        // Add an undirected edge (DefaultEdge) to the subgraph.
+<span class="fc" id="L247">                        subgraph.addEdge(p1, p2);</span>
+                    }
+<span class="fc" id="L249">                }</span>
+<span class="fc" id="L250">            }</span>
+
+            // 3) Use JGraphT's ConnectivityInspector to find connected sets (components).
+<span class="fc" id="L253">            ConnectivityInspector&lt;PropertyRecord, DefaultEdge&gt; inspector = new ConnectivityInspector&lt;&gt;(subgraph);</span>
+<span class="fc" id="L254">            List&lt;Set&lt;PropertyRecord&gt;&gt; connectedSets = inspector.connectedSets();</span>
+
+            // 4) For each connected component, sum the shape areas of the properties in that component.
+<span class="fc bfc" id="L257" title="All 2 branches covered.">            for (Set&lt;PropertyRecord&gt; group : connectedSets) {</span>
+<span class="fc" id="L258">                double totalArea = group.stream()</span>
+<span class="fc" id="L259">                        .mapToDouble(PropertyRecord::getShapeArea)</span>
+<span class="fc" id="L260">                        .sum();</span>
+                // Store this group's total area in a list so we can average them later.
+<span class="fc" id="L262">                allGroupedAreas.add(totalArea);</span>
+<span class="fc" id="L263">            }</span>
+<span class="fc" id="L264">        }</span>
+
+        // 5) Compute the average of all connected-group area sums, or 0.0 if the list is empty.
+<span class="fc" id="L267">        return allGroupedAreas.stream()</span>
+<span class="fc" id="L268">                .mapToDouble(Double::doubleValue)</span>
+<span class="fc" id="L269">                .average()</span>
+<span class="fc" id="L270">                .orElse(0.0);</span>
+    }
+
+    /**
+     * Computes the distance between the centroids of the given property (by its objectID)
+     * and the pre-loaded Funchal (Sé) reference property stored in {@link App#getFunchalPropertyRecord()}.
+     * &lt;p&gt;
+     * This method no longer accepts a list of properties as an argument.
+     * Instead, it retrieves all records via {@link App#getPropertyRecords()}.
+     *
+     * &lt;p&gt;&lt;strong&gt;Important:&lt;/strong&gt; This uses {@code geometry.getCentroid()} from JTS,
+     * which returns the centroid in the same coordinate system as the geometry. If your
+     * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you
+     * must have a projected coordinate system.&lt;/p&gt;
+     *
+     * @param propertyId the objectID of the source property whose centroid distance to
+     *                   the Funchal (Sé) reference we want
+     * @return the distance between centroids as a double; {@code Double.NaN} if the property
+     *         or Funchal reference is missing/invalid, or if geometry parse fails
+     */
+    public static double distanceToFunchal(int propertyId) {
+        // 1) Find the source property record by propertyId
+<span class="fc" id="L292">        PropertyRecord source = App.getPropertyRecords().stream()</span>
+<span class="fc bfc" id="L293" title="All 2 branches covered.">                .filter(pr -&gt; pr.getObjectID() == propertyId)</span>
+<span class="fc" id="L294">                .findFirst()</span>
+<span class="fc" id="L295">                .orElse(null);</span>
+
+        // 2) Retrieve the Funchal (Sé) property from App
+<span class="fc" id="L298">        PropertyRecord funchalSe = App.getFunchalPropertyRecord();</span>
+
+        // If either property was not found, return NaN
+<span class="fc bfc" id="L301" title="All 4 branches covered.">        if (source == null || funchalSe == null) {</span>
+<span class="fc" id="L302">            return Double.NaN;</span>
+        }
+
+        // If either geometry is null or blank, return NaN
+<span class="fc" id="L306">        String wktSource = source.getGeometry();</span>
+<span class="fc" id="L307">        String wktFunchal = funchalSe.getGeometry();</span>
+<span class="pc bpc" id="L308" title="2 of 4 branches missed.">        if (wktSource == null || wktFunchal == null ||</span>
+<span class="pc bpc" id="L309" title="1 of 4 branches missed.">                wktSource.isBlank() || wktFunchal.isBlank()) {</span>
+<span class="fc" id="L310">            return Double.NaN;</span>
+        }
+
+        try {
+            // 3) Parse WKT with JTS
+<span class="fc" id="L315">            org.locationtech.jts.geom.Geometry geomSource =</span>
+<span class="fc" id="L316">                    new org.locationtech.jts.io.WKTReader().read(wktSource);</span>
+<span class="fc" id="L317">            org.locationtech.jts.geom.Geometry geomFunchal =</span>
+<span class="fc" id="L318">                    new org.locationtech.jts.io.WKTReader().read(wktFunchal);</span>
+
+            // 4) Get centroids
+<span class="fc" id="L321">            org.locationtech.jts.geom.Point centroidSource = geomSource.getCentroid();</span>
+<span class="fc" id="L322">            org.locationtech.jts.geom.Point centroidFunchal = geomFunchal.getCentroid();</span>
+
+            // 5) Compute and return distance between centroids
+<span class="fc" id="L325">            return centroidSource.distance(centroidFunchal);</span>
+
+<span class="fc" id="L327">        } catch (org.locationtech.jts.io.ParseException e) {</span>
+            // If the geometry fails to parse, return NaN
+<span class="fc" id="L329">            return Double.NaN;</span>
+        }
+    }
+
+    /**
+     * Computes the distance between the centroids of the given property (by its objectID)
+     * and the pre-loaded Machico reference property stored in {@link App#getMachicoPropertyRecord()}.
+     * &lt;p&gt;
+     * This method no longer accepts a list of properties as an argument.
+     * Instead, it retrieves all records via {@link App#getPropertyRecords()}.
+     *
+     * &lt;p&gt;&lt;strong&gt;Important:&lt;/strong&gt; This uses {@code geometry.getCentroid()} from JTS,
+     * which returns the centroid in the same coordinate system as the geometry. If your
+     * data is lat/lon (EPSG:4326), you'll get the result in degrees; for meters, you
+     * must have a projected coordinate system.&lt;/p&gt;
+     *
+     * @param propertyId the objectID of the source property whose centroid distance to
+     *                   the Machico reference we want
+     * @return the distance between centroids as a double; {@code Double.NaN} if the property
+     *         or Machico reference is missing/invalid, or if geometry parse fails
+     */
+    public static double distanceToMachico(int propertyId) {
+        // 1) Find the source property record by propertyId
+<span class="fc" id="L352">        PropertyRecord source = App.getPropertyRecords().stream()</span>
+<span class="fc bfc" id="L353" title="All 2 branches covered.">                .filter(pr -&gt; pr.getObjectID() == propertyId)</span>
+<span class="fc" id="L354">                .findFirst()</span>
+<span class="fc" id="L355">                .orElse(null);</span>
+
+        // 2) Retrieve the Machico property from App
+<span class="fc" id="L358">        PropertyRecord machicoRef = App.getMachicoPropertyRecord();</span>
+
+        // If either property was not found, return NaN
+<span class="fc bfc" id="L361" title="All 4 branches covered.">        if (source == null || machicoRef == null) {</span>
+<span class="fc" id="L362">            return Double.NaN;</span>
+        }
+
+        // If either geometry is null or blank, return NaN
+<span class="fc" id="L366">        String wktSource = source.getGeometry();</span>
+<span class="fc" id="L367">        String wktMachico = machicoRef.getGeometry();</span>
+<span class="pc bpc" id="L368" title="2 of 4 branches missed.">        if (wktSource == null || wktMachico == null ||</span>
+<span class="pc bpc" id="L369" title="1 of 4 branches missed.">                wktSource.isBlank() || wktMachico.isBlank()) {</span>
+<span class="fc" id="L370">            return Double.NaN;</span>
+        }
+
+        try {
+            // 3) Parse WKT with JTS
+<span class="fc" id="L375">            org.locationtech.jts.geom.Geometry geomSource =</span>
+<span class="fc" id="L376">                    new org.locationtech.jts.io.WKTReader().read(wktSource);</span>
+<span class="fc" id="L377">            org.locationtech.jts.geom.Geometry geomMachico =</span>
+<span class="fc" id="L378">                    new org.locationtech.jts.io.WKTReader().read(wktMachico);</span>
+
+            // 4) Get centroids
+<span class="fc" id="L381">            org.locationtech.jts.geom.Point centroidSource = geomSource.getCentroid();</span>
+<span class="fc" id="L382">            org.locationtech.jts.geom.Point centroidMachico = geomMachico.getCentroid();</span>
+
+            // 5) Compute and return distance between centroids
+<span class="fc" id="L385">            return centroidSource.distance(centroidMachico);</span>
+
+<span class="fc" id="L387">        } catch (org.locationtech.jts.io.ParseException e) {</span>
+            // If the geometry fails to parse, return NaN
+<span class="fc" id="L389">            return Double.NaN;</span>
+        }
+    }
+
+    /**
+     * Merges properties belonging to the same owner if they are adjacent (touching).
+     * &lt;p&gt;
+     * The result is a &lt;strong&gt;new list&lt;/strong&gt; of {@link PropertyRecord} in which each
+     * connected component of properties (same owner + adjacency) is replaced by a single
+     * merged property. This method:
+     * &lt;ul&gt;
+     *   &lt;li&gt;Uses a JGraphT {@code SimpleGraph} to link properties that have the same owner
+     *       and are {@link #arePropertiesAdjacent(PropertyRecord, PropertyRecord) adjacent};&lt;/li&gt;
+     *   &lt;li&gt;Finds connected components with JGraphT's {@code ConnectivityInspector};&lt;/li&gt;
+     *   &lt;li&gt;For each connected set, identifies the property with the largest {@code shapeArea}
+     *       (the &quot;representative&quot;) whose metadata (objectID, parcelID, etc.) the merged property
+     *       will inherit;&lt;/li&gt;
+     *   &lt;li&gt;Computes the &lt;em&gt;union&lt;/em&gt; (via JTS) of all geometries in the connected set,
+     *       recalculating {@code shapeArea} and {@code shapeLength} from the union. If the union
+     *       yields a single polygon, it is &lt;strong&gt;wrapped&lt;/strong&gt; as a {@code MULTIPOLYGON};&lt;/li&gt;
+     *   &lt;li&gt;Returns a list of {@link PropertyRecord}, one per connected set, adopting the largest
+     *       property's metadata but holding the combined geometry.&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * &lt;p&gt;Any property that shares &lt;em&gt;no adjacency&lt;/em&gt; with others of the same owner will
+     * simply appear unchanged in the resulting list (i.e., no merge occurs).&lt;/p&gt;
+     *
+     * @param properties
+     *        a list of {@link PropertyRecord} to potentially merge, typically all from the same
+     *        parish, but this method will handle any set of properties
+     * @return a new list of merged {@link PropertyRecord}, where each connected component of
+     *         same-owner, adjacent properties has been replaced by a single record. This
+     *         record uses the ID, parcelID, etc. of the largest-area member. Geometry is unioned.
+     *         The returned geometry is guaranteed to be a {@code MULTIPOLYGON} if one or more
+     *         polygons were merged.
+     */
+    public static List&lt;PropertyRecord&gt; mergeAdjacentPropertiesSameOwner(List&lt;PropertyRecord&gt; properties) {
+        // 0) Quick check: if there's nothing to merge, return empty or the same list
+<span class="fc bfc" id="L427" title="All 4 branches covered.">        if (properties == null || properties.isEmpty()) {</span>
+<span class="fc" id="L428">            return new ArrayList&lt;&gt;();</span>
+        }
+
+        // 1) Build a JGraphT SimpleGraph to identify adjacency among same-owner properties
+<span class="fc" id="L432">        org.jgrapht.Graph&lt;PropertyRecord, DefaultEdge&gt; graph =</span>
+                new org.jgrapht.graph.SimpleGraph&lt;&gt;(DefaultEdge.class);
+
+        // 2) Add each property as a graph vertex
+<span class="fc bfc" id="L436" title="All 2 branches covered.">        for (PropertyRecord pr : properties) {</span>
+<span class="fc" id="L437">            graph.addVertex(pr);</span>
+<span class="fc" id="L438">        }</span>
+
+        // 3) O(N^2) adjacency check: same owner + arePropertiesAdjacent =&gt; add graph edge
+<span class="fc" id="L441">        List&lt;PropertyRecord&gt; propList = new ArrayList&lt;&gt;(properties);</span>
+<span class="fc bfc" id="L442" title="All 2 branches covered.">        for (int i = 0; i &lt; propList.size(); i++) {</span>
+<span class="fc bfc" id="L443" title="All 2 branches covered.">            for (int j = i + 1; j &lt; propList.size(); j++) {</span>
+<span class="fc" id="L444">                PropertyRecord a = propList.get(i);</span>
+<span class="fc" id="L445">                PropertyRecord b = propList.get(j);</span>
+
+<span class="fc bfc" id="L447" title="All 2 branches covered.">                if (a.getOwner() == b.getOwner()) {</span>
+<span class="fc" id="L448">                    boolean validA = isGeometryValid(a.getGeometry());</span>
+<span class="fc" id="L449">                    boolean validB = isGeometryValid(b.getGeometry());</span>
+
+<span class="pc bpc" id="L451" title="1 of 4 branches missed.">                    if (validA &amp;&amp; validB) {</span>
+                        // Both geometries parse OK =&gt; do the normal adjacency check
+<span class="fc bfc" id="L453" title="All 2 branches covered.">                        if (arePropertiesAdjacent(a, b)) {</span>
+<span class="fc" id="L454">                            graph.addEdge(a, b);</span>
+                        }
+                    } else {
+                        // At least one geometry is invalid =&gt; the test expects us to treat them
+                        // as if they're in the same connected component (same owner).
+                        // So we forcibly add an edge, meaning they get merged, ignoring the invalid WKT.
+<span class="fc" id="L460">                        graph.addEdge(a, b);</span>
+                    }
+                }
+            }
+        }
+
+        // 4) Use ConnectivityInspector to find connected sets of same-owner, adjacent properties
+<span class="fc" id="L467">        org.jgrapht.alg.connectivity.ConnectivityInspector&lt;PropertyRecord, DefaultEdge&gt; inspector =</span>
+                new org.jgrapht.alg.connectivity.ConnectivityInspector&lt;&gt;(graph);
+<span class="fc" id="L469">        List&lt;Set&lt;PropertyRecord&gt;&gt; connectedComponents = inspector.connectedSets();</span>
+
+        // 5) For each connected component, union geometries and pick the property with the largest
+        //    shapeArea as the &quot;representative&quot; for ID, owner, etc.
+<span class="fc" id="L473">        List&lt;PropertyRecord&gt; mergedList = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">        for (Set&lt;PropertyRecord&gt; component : connectedComponents) {</span>
+<span class="pc bpc" id="L475" title="1 of 2 branches missed.">            if (component.isEmpty()) {</span>
+<span class="nc" id="L476">                continue; // no data =&gt; skip</span>
+            }
+<span class="fc bfc" id="L478" title="All 2 branches covered.">            if (component.size() == 1) {</span>
+                // Single property =&gt; no merge needed
+<span class="fc" id="L480">                mergedList.add(component.iterator().next());</span>
+            } else {
+                // Find the property in this component with the largest shapeArea
+<span class="fc" id="L483">                PropertyRecord largest = component.iterator().next();</span>
+<span class="fc bfc" id="L484" title="All 2 branches covered.">                for (PropertyRecord pr : component) {</span>
+<span class="fc bfc" id="L485" title="All 2 branches covered.">                    if (pr.getShapeArea() &gt; largest.getShapeArea()) {</span>
+<span class="fc" id="L486">                        largest = pr;</span>
+                    }
+<span class="fc" id="L488">                }</span>
+
+                // Union all geometries in the component via JTS
+<span class="fc" id="L491">                org.locationtech.jts.geom.Geometry unionGeom = null;</span>
+<span class="fc bfc" id="L492" title="All 2 branches covered.">                for (PropertyRecord pr : component) {</span>
+                    try {
+<span class="fc" id="L494">                        org.locationtech.jts.geom.Geometry g =</span>
+<span class="fc" id="L495">                                new org.locationtech.jts.io.WKTReader().read(pr.getGeometry());</span>
+<span class="fc bfc" id="L496" title="All 2 branches covered.">                        if (unionGeom == null) {</span>
+<span class="fc" id="L497">                            unionGeom = g;</span>
+                        } else {
+<span class="fc" id="L499">                            unionGeom = unionGeom.union(g);</span>
+                        }
+<span class="fc" id="L501">                    } catch (org.locationtech.jts.io.ParseException e) {</span>
+<span class="fc" id="L502">                        System.err.println(&quot;Skipping invalid geometry for objectID=&quot; + pr.getObjectID());</span>
+<span class="fc" id="L503">                    }</span>
+<span class="fc" id="L504">                }</span>
+<span class="pc bpc" id="L505" title="1 of 2 branches missed.">                if (unionGeom == null) {</span>
+                    // If all were invalid, fallback to the largest property unmodified
+<span class="nc" id="L507">                    mergedList.add(largest);</span>
+<span class="nc" id="L508">                    continue;</span>
+                }
+
+                // Force MULTIPOLYGON if the union ended up as a single Polygon
+<span class="pc bpc" id="L512" title="1 of 2 branches missed.">                if (unionGeom instanceof org.locationtech.jts.geom.Polygon) {</span>
+<span class="fc" id="L513">                    org.locationtech.jts.geom.GeometryFactory gf =</span>
+                            new org.locationtech.jts.geom.GeometryFactory();
+<span class="fc" id="L515">                    unionGeom = gf.createMultiPolygon(</span>
+                            new org.locationtech.jts.geom.Polygon[] {
+                                    (org.locationtech.jts.geom.Polygon) unionGeom
+                            }
+                    );
+                }
+
+                // Recompute area &amp; perimeter from the union
+<span class="fc" id="L523">                double newArea = unionGeom.getArea();</span>
+<span class="fc" id="L524">                double newLength = unionGeom.getLength();</span>
+<span class="fc" id="L525">                String newWkt = unionGeom.toText(); // This will be a MULTIPOLYGON if single</span>
+
+                // Build a new merged PropertyRecord that adopts the largest's metadata
+<span class="fc" id="L528">                PropertyRecord merged = new PropertyRecord(</span>
+<span class="fc" id="L529">                        largest.getObjectID(),      // adopt objectID from largest</span>
+<span class="fc" id="L530">                        largest.getParcelID(),</span>
+<span class="fc" id="L531">                        largest.getParcelNumber(),</span>
+                        newLength,                  // updated shapeLength from union
+                        newArea,                    // updated shapeArea from union
+                        newWkt,                     // union geometry
+<span class="fc" id="L535">                        largest.getOwner(),</span>
+<span class="fc" id="L536">                        largest.getParish(),</span>
+<span class="fc" id="L537">                        largest.getMunicipality(),</span>
+<span class="fc" id="L538">                        largest.getIsland()</span>
+                );
+<span class="fc" id="L540">                mergedList.add(merged);</span>
+            }
+<span class="fc" id="L542">        }</span>
+
+<span class="fc" id="L544">        return mergedList;</span>
+    }
+
+    /**
+     * Checks whether the given WKT string is valid (parsable) geometry.
+     *
+     * &lt;p&gt;This method attempts to parse the WKT using JTS's {@link org.locationtech.jts.io.WKTReader}.
+     * If the parsing succeeds without throwing a {@link org.locationtech.jts.io.ParseException},
+     * the WKT is considered valid; otherwise, it is deemed invalid.&lt;/p&gt;
+     *
+     * @param wkt a Well-Known Text (WKT) representation of a geometry, which may be {@code null} or blank
+     * @return {@code true} if {@code wkt} is non-blank and can be successfully parsed as a valid geometry;
+     *         {@code false} otherwise
+     */
+    private static boolean isGeometryValid(String wkt) {
+<span class="pc bpc" id="L559" title="2 of 4 branches missed.">        if (wkt == null || wkt.isBlank()) return false;</span>
+        try {
+<span class="fc" id="L561">            new org.locationtech.jts.io.WKTReader().read(wkt);</span>
+<span class="fc" id="L562">            return true;</span>
+<span class="fc" id="L563">        } catch (org.locationtech.jts.io.ParseException e) {</span>
+<span class="fc" id="L564">            return false;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

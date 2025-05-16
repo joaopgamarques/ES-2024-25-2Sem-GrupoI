@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CSVFileReader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">CSVFileReader.java</span></div><h1>CSVFileReader.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
+import com.opencsv.exceptions.CsvValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Utility class for reading property data from CSV files. It includes:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #importData(String)} to read from a resource on the classpath (e.g. /Madeira-Moodle-1.1.csv)&lt;/li&gt;
+ *   &lt;li&gt;{@link #importDataFromFile(String)} to read from a normal file path on disk&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+<span class="fc" id="L23">public class CSVFileReader {</span>
+
+<span class="fc" id="L25">    private static final Logger logger = LoggerFactory.getLogger(CSVFileReader.class);</span>
+
+    /**
+     * Reads a CSV file from the classpath (e.g., /Madeira-Moodle-1.1.csv).
+     * Uses getResourceAsStream, so the CSV must be in src/main/resources or
+     * otherwise on the classpath.
+     *
+     * @param csvResourcePath e.g. &quot;/Madeira-Moodle-1.1.csv&quot;
+     * @return a List of PropertyRecord, or empty if not found or parse error
+     */
+    public List&lt;PropertyRecord&gt; importData(String csvResourcePath) {
+<span class="fc" id="L36">        InputStream csvStream = getClass().getResourceAsStream(csvResourcePath);</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (csvStream == null) {</span>
+<span class="fc" id="L38">            logger.warn(&quot;Could not find CSV resource: {}&quot;, csvResourcePath);</span>
+<span class="fc" id="L39">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="fc" id="L41">        logger.info(&quot;Reading CSV from resource path: {}&quot;, csvResourcePath);</span>
+<span class="fc" id="L42">        return parseCsvInputStream(csvStream, csvResourcePath);</span>
+    }
+
+    /**
+     * Reads a CSV file from a regular file path on the disk (not the classpath).
+     *
+     * @param filePath the path to the CSV file, e.g. &quot;C:/data/properties.csv&quot; or &quot;target/exported-test-data.csv&quot;
+     * @return a List of PropertyRecord, or empty if file not found or parse errors
+     */
+    public List&lt;PropertyRecord&gt; importDataFromFile(String filePath) {
+<span class="fc" id="L52">        File csvFile = new File(filePath);</span>
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (!csvFile.exists()) {</span>
+<span class="nc" id="L54">            logger.warn(&quot;CSV file not found at: {}&quot;, filePath);</span>
+<span class="nc" id="L55">            return new ArrayList&lt;&gt;();</span>
+        }
+<span class="fc" id="L57">        logger.info(&quot;Reading CSV from filesystem path: {}&quot;, filePath);</span>
+
+<span class="fc" id="L59">        try (FileInputStream fis = new FileInputStream(csvFile)) {</span>
+<span class="fc" id="L60">            return parseCsvInputStream(fis, filePath);</span>
+<span class="nc" id="L61">        } catch (IOException e) {</span>
+<span class="nc" id="L62">            logger.error(&quot;Error opening CSV file: {}&quot;, filePath, e);</span>
+<span class="nc" id="L63">            return new ArrayList&lt;&gt;();</span>
+        }
+    }
+
+    /**
+     * Shared logic to parse an InputStream using OpenCSV, converting each row into a PropertyRecord.
+     */
+    private List&lt;PropertyRecord&gt; parseCsvInputStream(InputStream inputStream, String sourceDesc) {
+<span class="fc" id="L71">        List&lt;PropertyRecord&gt; propertyRecords = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L73">        try (Reader fileReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {</span>
+<span class="fc" id="L74">            CSVParser parser = new CSVParserBuilder().withSeparator(';').build();</span>
+<span class="fc" id="L75">            try (CSVReader csvReader = new CSVReaderBuilder(fileReader).withCSVParser(parser).build()) {</span>
+
+                String[] row;
+<span class="fc" id="L78">                int rowIndex = 0;</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">                while ((row = csvReader.readNext()) != null) {</span>
+                    // Skip header
+<span class="fc bfc" id="L82" title="All 2 branches covered.">                    if (rowIndex == 0) {</span>
+<span class="fc" id="L83">                        rowIndex++;</span>
+<span class="fc" id="L84">                        continue;</span>
+                    }
+                    try {
+<span class="fc" id="L87">                        int objectID = Integer.parseInt(row[0]);</span>
+
+<span class="fc" id="L89">                        String parcelIDString = row[1].replace(',', '.');</span>
+<span class="fc" id="L90">                        long parcelID = (long) Double.parseDouble(parcelIDString);</span>
+
+<span class="fc" id="L92">                        String parcelNumberString = row[2].replace(',', '.');</span>
+<span class="fc" id="L93">                        long parcelNumber = (long) Double.parseDouble(parcelNumberString);</span>
+
+<span class="fc" id="L95">                        double shapeLength = Double.parseDouble(row[3]);</span>
+<span class="fc" id="L96">                        double shapeArea = Double.parseDouble(row[4]);</span>
+<span class="fc" id="L97">                        String geometry = row[5];</span>
+<span class="fc" id="L98">                        int owner = Integer.parseInt(row[6]);</span>
+
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">                        String parish = &quot;NA&quot;.equals(row[7]) ? null : row[7];</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">                        String municipality = &quot;NA&quot;.equals(row[8]) ? null : row[8];</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">                        String island = &quot;NA&quot;.equals(row[9]) ? null : row[9];</span>
+
+<span class="fc" id="L104">                        PropertyRecord record = new PropertyRecord(objectID, parcelID, parcelNumber,</span>
+                                shapeLength, shapeArea, geometry, owner, parish, municipality, island);
+
+<span class="fc" id="L107">                        propertyRecords.add(record);</span>
+<span class="nc" id="L108">                    } catch (NumberFormatException e) {</span>
+<span class="nc" id="L109">                        logger.warn(&quot;Skipping row {} in {} due to parse error: {}&quot;, rowIndex, sourceDesc, e.getMessage());</span>
+<span class="fc" id="L110">                    }</span>
+<span class="fc" id="L111">                    rowIndex++;</span>
+                }
+            }
+<span class="nc" id="L114">        } catch (IOException | CsvValidationException e) {</span>
+<span class="nc" id="L115">            logger.error(&quot;Error reading/parsing CSV from {}: {}&quot;, sourceDesc, e.getMessage(), e);</span>
+<span class="fc" id="L116">        }</span>
+
+<span class="fc" id="L118">        logger.info(&quot;Finished reading CSV from {}. Total records loaded: {}&quot;, sourceDesc, propertyRecords.size());</span>
+<span class="fc" id="L119">        return propertyRecords;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

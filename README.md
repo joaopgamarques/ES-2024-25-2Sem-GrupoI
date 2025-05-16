@@ -90,7 +90,7 @@ All dependencies are managed via **Maven**. You’ll find them in the [pom.xml](
 
 ## Planned / Partially Implemented Features
 
-1. **Swap Suggestions**
+- **Swap Suggestions**
     - Current logic considers area plus distances to Funchal and Machico.
     - Future expansions could incorporate additional metrics (e.g., **price**, **population density**) to enrich the swap scoring mechanism.
     - Threshold-based approaches and scoring heuristics are partially integrated but not yet extensively tested.
@@ -134,6 +134,12 @@ After the build finishes you can open the following reports locally:
 | **PMD**               | Code-quality rules       | `target/reports/pmd.html`       |
 | **SpotBugs**          | Bug-pattern detection    | `target/site/spotbugs.html`     |
 | **CPD**               | Copy-and-paste detection | `target/reports/cpd.html`       |
+
+#### Test Coverage
+- According to our latest JaCoCo results:
+  - Missed Instructions: 38% (which implies 62% coverage of instructions)
+  - Missed Branches: 46% (which implies 54% branch coverage)
+  - We plan to improve these metrics by adding more integration and UI tests in future sprint
 
 ## Group Identification
 

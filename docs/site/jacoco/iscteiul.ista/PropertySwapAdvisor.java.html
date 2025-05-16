@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PropertySwapAdvisor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">PropertySwapAdvisor.java</span></div><h1>PropertySwapAdvisor.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+/**
+ * &lt;h2&gt;PropertySwapAdvisor&lt;/h2&gt;
+ *
+ * &lt;p&gt;This utility class provides methods to generate potential swap suggestions
+ * among merged properties belonging to different owners. It evaluates:
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;strong&gt;Area similarity&lt;/strong&gt; – If two properties have similar areas.&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Distance to Funchal&lt;/strong&gt; – Compares how close each property is to Funchal (Sé).&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Distance to Machico&lt;/strong&gt; – Compares how close each property is to Machico.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;For each pair of adjacent properties (as defined by the &lt;em&gt;merged property graph&lt;/em&gt;),
+ * if they have different owners and their &lt;em&gt;area ratio&lt;/em&gt; is below a given threshold,
+ * the advisor computes an overall &lt;em&gt;score&lt;/em&gt; that combines these three metrics with
+ * different weights:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Area similarity: 80%&lt;/li&gt;
+ *   &lt;li&gt;Funchal distance similarity: 15%&lt;/li&gt;
+ *   &lt;li&gt;Machico distance similarity: 5%&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;A higher score indicates a more promising swap, balancing the interest in
+ * minimal differences in area and in distances to major landmarks.
+ *
+ * &lt;p&gt;This class is &lt;strong&gt;final&lt;/strong&gt; and has a private constructor to prevent instantiation,
+ * as it functions purely as a static utility.
+ */
+public final class PropertySwapAdvisor {
+
+    /** Private constructor to prevent instantiation. */
+    private PropertySwapAdvisor() {
+        // No instantiation
+    }
+
+    /**
+     * &lt;p&gt;&lt;strong&gt;Suggests swaps&lt;/strong&gt; between merged properties in the given graph.
+     * Each edge in {@code mergedGraph} represents two properties that are spatially adjacent
+     * (touching). We only consider a swap if the two properties belong to &lt;em&gt;different owners&lt;/em&gt;
+     * and if their areas differ by at most {@code areaThreshold} in relative terms.&lt;/p&gt;
+     *
+     * &lt;p&gt;The method then calculates three similarity measures:
+     * &lt;ol&gt;
+     *   &lt;li&gt;Area Similarity, in [0..1], defined as {@code 1 - areaRatio}.&lt;/li&gt;
+     *   &lt;li&gt;Funchal Distance Similarity, comparing how each property differs in
+     *       distance to Funchal. If the geometry or reference is missing,
+     *       the swap is skipped.&lt;/li&gt;
+     *   &lt;li&gt;Machico Distance Similarity, analogous to the Funchal approach.&lt;/li&gt;
+     * &lt;/ol&gt;
+     *
+     * &lt;p&gt;Finally, an overall &lt;em&gt;score&lt;/em&gt; is computed as a weighted combination:&lt;/p&gt;
+     * &lt;blockquote&gt;
+     * {@code score = 0.8 * areaSimilarity + 0.15 * funchalSimilarity + 0.05 * machicoSimilarity;}
+     * &lt;/blockquote&gt;
+     *
+     * &lt;p&gt;Suggestions are returned in a list, sorted by descending score. If there are
+     * more than {@code maxSuggestions} possible swaps, only the top {@code maxSuggestions}
+     * are included.&lt;/p&gt;
+     *
+     * @param mergedGraph    the adjacency graph (where each vertex is a merged property)
+     * @param areaThreshold  the maximum allowable relative area difference (e.g., 0.1 = 10%)
+     * @param maxSuggestions the maximum number of suggestions to return
+     * @return a list of {@link SwapSuggestion} objects, sorted descending by score
+     *
+     * @see SwapSuggestion
+     * @see PropertyUtils#distanceToFunchal(int)
+     * @see PropertyUtils#distanceToMachico(int)
+     */
+    public static List&lt;SwapSuggestion&gt; suggestSwaps(
+            SimpleGraph&lt;PropertyRecord, DefaultEdge&gt; mergedGraph,
+            double areaThreshold,
+            int maxSuggestions
+    ) {
+<span class="fc" id="L83">        List&lt;SwapSuggestion&gt; suggestions = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        for (DefaultEdge edge : mergedGraph.edgeSet()) {</span>
+<span class="fc" id="L86">            PropertyRecord p1 = mergedGraph.getEdgeSource(edge);</span>
+<span class="fc" id="L87">            PropertyRecord p2 = mergedGraph.getEdgeTarget(edge);</span>
+
+            // 1) Check owners
+<span class="fc bfc" id="L90" title="All 2 branches covered.">            if (p1.getOwner() == p2.getOwner()) {</span>
+<span class="fc" id="L91">                continue; // same owner =&gt; no swap</span>
+            }
+
+            // 2) Compute area similarity
+<span class="fc" id="L95">            double areaSim = computeAreaSimilarity(p1, p2, areaThreshold);</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            if (Double.isNaN(areaSim)) {</span>
+<span class="fc" id="L97">                continue; // skip this pair</span>
+            }
+
+            // 3) Compute funchal similarity
+<span class="fc" id="L101">            double funchalSim = computeDistanceSimilarityFunchal(p1, p2);</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">            if (Double.isNaN(funchalSim)) {</span>
+<span class="nc" id="L103">                continue; // skip if invalid geometry or distance</span>
+            }
+
+            // 4) Compute machico similarity
+<span class="fc" id="L107">            double machicoSim = computeDistanceSimilarityMachico(p1, p2);</span>
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">            if (Double.isNaN(machicoSim)) {</span>
+<span class="nc" id="L109">                continue; // skip if invalid geometry or distance</span>
+            }
+
+            // 5) Combine into a final score
+<span class="fc" id="L113">            double score = combineScore(areaSim, funchalSim, machicoSim);</span>
+
+            // We can define cost/benefit in any way; for demonstration:
+<span class="fc" id="L116">            double cost = 1.0 - areaSim;  // e.g., using the difference from areaSim</span>
+<span class="fc" id="L117">            double benefit = score;</span>
+
+            // Build the suggestion
+<span class="fc" id="L120">            SwapSuggestion suggestion = new SwapSuggestion(</span>
+                    p1, p2,
+                    benefit,
+                    cost,
+                    score
+            );
+<span class="fc" id="L126">            suggestions.add(suggestion);</span>
+<span class="fc" id="L127">        }</span>
+
+        // Sort by score descending
+<span class="fc" id="L130">        suggestions.sort(Comparator.comparingDouble(SwapSuggestion::getScore).reversed());</span>
+
+        // Limit the size to maxSuggestions
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (suggestions.size() &gt; maxSuggestions) {</span>
+<span class="fc" id="L134">            return suggestions.subList(0, maxSuggestions);</span>
+        }
+<span class="fc" id="L136">        return suggestions;</span>
+    }
+
+    /**
+     * Computes the area similarity in [0..1], or returns {@code Double.NaN}
+     * if the ratio is above the threshold.
+     *
+     * @param p1             first property
+     * @param p2             second property
+     * @param areaThreshold  maximum allowable relative difference in area
+     * @return a similarity value in [0..1], or NaN if above threshold
+     */
+    private static double computeAreaSimilarity(PropertyRecord p1, PropertyRecord p2, double areaThreshold) {
+<span class="fc" id="L149">        double a1 = Math.max(0.00001, p1.getShapeArea());</span>
+<span class="fc" id="L150">        double a2 = Math.max(0.00001, p2.getShapeArea());</span>
+<span class="fc" id="L151">        double ratio = Math.abs(a1 - a2) / Math.max(a1, a2);</span>
+
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (ratio &gt; areaThreshold) {</span>
+            // Return NaN so we know to skip
+<span class="fc" id="L155">            return Double.NaN;</span>
+        }
+<span class="fc" id="L157">        return 1.0 - ratio; // area similarity</span>
+    }
+
+    /**
+     * Computes the distance similarity for how close p1 and p2 are to Funchal.
+     * Returns a value in [0..1], or NaN if geometry is invalid or distances are missing.
+     *
+     * @param p1 first property
+     * @param p2 second property
+     * @return distance similarity in [0..1], or NaN if unavailable
+     */
+    private static double computeDistanceSimilarityFunchal(PropertyRecord p1, PropertyRecord p2) {
+<span class="fc" id="L169">        double dist1 = PropertyUtils.distanceToFunchal(p1.getObjectID());</span>
+<span class="fc" id="L170">        double dist2 = PropertyUtils.distanceToFunchal(p2.getObjectID());</span>
+
+<span class="pc bpc" id="L172" title="4 of 8 branches missed.">        if (Double.isNaN(dist1) || Double.isNaN(dist2) || dist1 &lt;= 0.0 || dist2 &lt;= 0.0) {</span>
+<span class="nc" id="L173">            return Double.NaN;</span>
+        }
+
+<span class="fc" id="L176">        double ratio = Math.abs(dist1 - dist2) / Math.max(dist1, dist2);</span>
+<span class="fc" id="L177">        return 1.0 - ratio;</span>
+    }
+
+    /**
+     * Computes the distance similarity for how close p1 and p2 are to Machico.
+     * Returns a value in [0..1], or NaN if geometry is invalid or distances are missing.
+     *
+     * @param p1 first property
+     * @param p2 second property
+     * @return distance similarity in [0..1], or NaN if unavailable
+     */
+    private static double computeDistanceSimilarityMachico(PropertyRecord p1, PropertyRecord p2) {
+<span class="fc" id="L189">        double dist1 = PropertyUtils.distanceToMachico(p1.getObjectID());</span>
+<span class="fc" id="L190">        double dist2 = PropertyUtils.distanceToMachico(p2.getObjectID());</span>
+
+<span class="pc bpc" id="L192" title="4 of 8 branches missed.">        if (Double.isNaN(dist1) || Double.isNaN(dist2) || dist1 &lt;= 0.0 || dist2 &lt;= 0.0) {</span>
+<span class="nc" id="L193">            return Double.NaN;</span>
+        }
+
+<span class="fc" id="L196">        double ratio = Math.abs(dist1 - dist2) / Math.max(dist1, dist2);</span>
+<span class="fc" id="L197">        return 1.0 - ratio;</span>
+    }
+
+    /**
+     * Computes a final weighted score from the three similarities:
+     * &lt;blockquote&gt;
+     * {@code score = 0.8 * areaSim + 0.15 * funchalSim + 0.05 * machicoSim;}
+     * &lt;/blockquote&gt;
+     *
+     * @param areaSim     similarity of area in [0..1]
+     * @param funchalSim  similarity of distance to Funchal in [0..1]
+     * @param machicoSim  similarity of distance to Machico in [0..1]
+     * @return an overall score, higher is better
+     */
+    private static double combineScore(double areaSim, double funchalSim, double machicoSim) {
+<span class="fc" id="L212">        return 0.8 * areaSim + 0.15 * funchalSim + 0.05 * machicoSim;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

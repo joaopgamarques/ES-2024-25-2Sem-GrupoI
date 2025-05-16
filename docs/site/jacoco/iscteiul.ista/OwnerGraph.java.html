@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OwnerGraph.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ES-Project-TerritoryManagement</a> &gt; <a href="index.source.html" class="el_package">iscteiul.ista</a> &gt; <span class="el_source">OwnerGraph.java</span></div><h1>OwnerGraph.java</h1><pre class="source lang-java linenums">package iscteiul.ista;
+
+import org.jgrapht.Graph;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Represents a graph of owners, where each node is an owner (identified by owner ID),
+ * and edges indicate that these owners have at least one pair of adjacent properties.
+ *
+ * &lt;p&gt;Internally uses a JGraphT {@link SimpleGraph} of (Integer, DefaultEdge).
+ */
+public class OwnerGraph {
+
+    /**
+     * The underlying JGraphT graph with:
+     * - Vertex = Integer (the owner's ID)
+     * - Edge = DefaultEdge (undirected, representing adjacency between owners)
+     */
+    private final Graph&lt;Integer, DefaultEdge&gt; graph;
+
+    /**
+     * Constructs an empty OwnerGraph using a SimpleGraph.
+     */
+<span class="fc" id="L28">    public OwnerGraph() {</span>
+<span class="fc" id="L29">        this.graph = new SimpleGraph&lt;&gt;(DefaultEdge.class);</span>
+<span class="fc" id="L30">    }</span>
+
+    /**
+     * Builds the Owner graph from the list of PropertyRecord objects.
+     * &lt;ol&gt;
+     *   &lt;li&gt;Collect all unique owner IDs.&lt;/li&gt;
+     *   &lt;li&gt;Add each owner ID as a vertex in the graph.&lt;/li&gt;
+     *   &lt;li&gt;For each pair of owners, check if they have at least one pair of adjacent properties.
+     *       If so, add an edge between those owners.&lt;/li&gt;
+     * &lt;/ol&gt;
+     *
+     * &lt;p&gt;&lt;strong&gt;Note:&lt;/strong&gt; This is an O(N^2 * M^2) approach in the worst case,
+     * if you have N owners each with up to M properties, because for each pair of owners,
+     * you compare all properties. For smaller datasets, it's fine. For large data, consider
+     * more efficient adjacency checks or spatial indexing.
+     *
+     * @param properties A list of all {@link PropertyRecord} objects (possibly from the entire dataset).
+     */
+    public void buildGraph(List&lt;PropertyRecord&gt; properties) {
+        // 1) Group properties by their owner
+<span class="fc" id="L50">        Map&lt;Integer, List&lt;PropertyRecord&gt;&gt; propsByOwner = properties.stream()</span>
+<span class="fc" id="L51">                .collect(Collectors.groupingBy(PropertyRecord::getOwner));</span>
+
+        // 2) Add each unique owner as a vertex in the graph
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        for (Integer ownerId : propsByOwner.keySet()) {</span>
+<span class="fc" id="L55">            graph.addVertex(ownerId);</span>
+<span class="fc" id="L56">        }</span>
+
+        // 3) For each pair of owners, check adjacency among their properties
+<span class="fc" id="L59">        List&lt;Integer&gt; ownerList = new ArrayList&lt;&gt;(propsByOwner.keySet());</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        for (int i = 0; i &lt; ownerList.size(); i++) {</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">            for (int j = i + 1; j &lt; ownerList.size(); j++) {</span>
+<span class="fc" id="L62">                Integer ownerA = ownerList.get(i);</span>
+<span class="fc" id="L63">                Integer ownerB = ownerList.get(j);</span>
+
+                // Retrieve each owner's list of properties
+<span class="fc" id="L66">                List&lt;PropertyRecord&gt; propsA = propsByOwner.get(ownerA);</span>
+<span class="fc" id="L67">                List&lt;PropertyRecord&gt; propsB = propsByOwner.get(ownerB);</span>
+
+                // Check if any property in A's list is adjacent to any in B's list
+<span class="fc bfc" id="L70" title="All 2 branches covered.">                if (ownersHaveAdjacentProperties(propsA, propsB)) {</span>
+                    // Add an edge in the graph (undirected)
+<span class="fc" id="L72">                    graph.addEdge(ownerA, ownerB);</span>
+                }
+            }
+        }
+<span class="fc" id="L76">    }</span>
+
+    /**
+     * Simple helper method to check if any property in listA is adjacent to any property in listB.
+     */
+    private boolean ownersHaveAdjacentProperties(List&lt;PropertyRecord&gt; listA, List&lt;PropertyRecord&gt; listB) {
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        for (PropertyRecord a : listA) {</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">            for (PropertyRecord b : listB) {</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                if (PropertyUtils.arePropertiesAdjacent(a, b)) {</span>
+<span class="fc" id="L85">                    return true; // Found at least one adjacent pair</span>
+                }
+<span class="fc" id="L87">            }</span>
+<span class="fc" id="L88">        }</span>
+<span class="fc" id="L89">        return false;</span>
+    }
+
+    /**
+     * @return the underlying JGraphT graph of (ownerID, edges).
+     */
+    public Graph&lt;Integer, DefaultEdge&gt; getGraph() {
+<span class="fc" id="L96">        return graph;</span>
+    }
+
+    /**
+     * Returns a set of all owner IDs currently in this graph.
+     *
+     * @return a {@code Set} containing each owner's unique integer ID
+     */
+    public Set&lt;Integer&gt; getOwners() {
+<span class="fc" id="L105">        return graph.vertexSet();</span>
+    }
+
+    /**
+     * Returns the set of adjacent owners (neighbors) for a given owner ID.
+     * &lt;p&gt;
+     * An adjacent owner is one who shares at least one pair of adjacent
+     * properties with the specified owner.
+     *
+     * @param ownerId the integer ID of the owner whose neighbors are sought
+     * @return a {@code Set} of owner IDs adjacent to the given {@code ownerId},
+     *         or an empty set if the owner does not exist or has no neighbors
+     */
+    public Set&lt;Integer&gt; getNeighbors(int ownerId) {
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (!graph.containsVertex(ownerId)) {</span>
+<span class="nc" id="L120">            return Collections.emptySet();</span>
+        }
+        // In JGraphT, you can find neighbors by checking edges from the given vertex.
+<span class="fc" id="L123">        Set&lt;DefaultEdge&gt; edges = graph.edgesOf(ownerId);</span>
+<span class="fc" id="L124">        Set&lt;Integer&gt; neighbors = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        for (DefaultEdge e : edges) {</span>
+<span class="fc" id="L126">            Integer source = graph.getEdgeSource(e);</span>
+<span class="fc" id="L127">            Integer target = graph.getEdgeTarget(e);</span>
+            // The &quot;other&quot; node is whichever is not the ownerId
+<span class="fc bfc" id="L129" title="All 2 branches covered.">            if (!source.equals(ownerId)) {</span>
+<span class="fc" id="L130">                neighbors.add(source);</span>
+            }
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            if (!target.equals(ownerId)) {</span>
+<span class="fc" id="L133">                neighbors.add(target);</span>
+            }
+<span class="fc" id="L135">        }</span>
+<span class="fc" id="L136">        return neighbors;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

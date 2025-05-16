@@ -313,7 +313,11 @@ public final class App {
         System.out.println("Distance to Machico in kilometers: " + String.format("%.1f", distanceMachico/1000));
 
         // 13. Visualize the STRtree-based property graph in GraphStream.
-        GraphVisualization.visualizeGraph(propertyGraphJgt);
+        // GraphVisualization.visualizeGraph(propertyGraphJgt);
+
+        // 14. Create a swing-based UI for the application
+        AppUI.showUI();
+
     }
 
     /**

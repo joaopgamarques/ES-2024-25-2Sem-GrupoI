@@ -93,7 +93,7 @@
   <!-- Build setup -->
   <build>
     <plugins>
-      <!-- Javadoc plugin wired to package phase and attaching javadoc.jar -->
+      <!-- Javadoc plugin -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -144,7 +144,14 @@
           <failOnViolation>false</failOnViolation>
           <printFailingErrors>true</printFailingErrors>
           <rulesets>
-            <ruleset>/rulesets/java/quickstart.xml</ruleset>
+            <!-- design checks (including CyclomaticComplexity) -->
+            <ruleset>category/java/design.xml</ruleset>
+            <!-- suspicious code patterns, potential bugs, etc. -->
+            <ruleset>category/java/errorprone.xml</ruleset>
+            <!-- recommended best practices -->
+            <ruleset>category/java/bestpractices.xml</ruleset>
+            <!-- code that might be slow or inefficient -->
+            <ruleset>category/java/performance.xml</ruleset>
           </rulesets>
           <xrefLocation>${project.reporting.outputDirectory}/xref</xrefLocation>
         </configuration>
@@ -176,7 +183,7 @@
         </executions>
       </plugin>
 
-      <!-- https://mvnrepository.com/artifact/com.github.spotbugs/spotbugs-maven-plugin -->
+      <!-- SpotBugs plugin -->
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>
@@ -184,7 +191,6 @@
         <executions>
           <execution>
             <id>spotbugs</id>
-            <!-- Usually we bind SpotBugs to the "verify" phase so it runs after tests -->
             <phase>verify</phase>
             <goals>
               <goal>spotbugs</goal>
@@ -192,22 +198,14 @@
           </execution>
         </executions>
         <configuration>
-          <!--
-            "failOnError" false => won't break the build if issues are found;
-            set to true if you want to fail the build on SpotBugs warnings.
-          -->
           <failOnError>false</failOnError>
-          <!--
-            "effort" can be Max/Min/Default; "Max" is more thorough but slower.
-            "threshold" can be High/Medium/Low to control bug prioritization.
-          -->
           <effort>Max</effort>
           <threshold>Low</threshold>
         </configuration>
       </plugin>
     </plugins>
 
-    <!-- Core plugin versions locked here -->
+    <!-- Lock plugin versions here -->
     <pluginManagement>
       <plugins>
         <plugin>

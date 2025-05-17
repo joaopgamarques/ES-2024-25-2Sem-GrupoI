@@ -384,7 +384,7 @@ public class AppUI extends JFrame {
 
         // Display
         outputTextArea.append("Average area in " + selectedValue
-                + " (no adjacency grouping) = " + String.format("%.2f", averageArea) + " [ha]\n");
+                + " (no adjacency grouping) [ha] = " + String.format("%.2f", averageArea) + "\n");
     }
 
     /**
@@ -437,8 +437,8 @@ public class AppUI extends JFrame {
         double averageGroupedArea = PropertyUtils.calculateAverageGroupedArea(subset, jgtGraph);
 
         // Print only the grouped average
-        outputTextArea.append("Average area in " + selectedValue + " (grouped by owner adjacency) = "
-                + String.format("%.2f", averageGroupedArea) + " [ha]\n");
+        outputTextArea.append("Average area in " + selectedValue + " (grouped by owner adjacency) [ha] = "
+                + String.format("%.2f", averageGroupedArea) + "\n");
     }
 
     /**

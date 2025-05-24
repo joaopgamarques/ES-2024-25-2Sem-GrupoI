@@ -191,8 +191,8 @@ If you want to see the Swing interface (`AppUI`):
 **Clone the repository and run all tests & package:**
 
 ```bash
-  git clone https://github.com/YOUR-REPO/ES-2024-25-2Sem-YourGroup.git
-  cd ES-2024-25-2Sem-YourGroup
+  git clone https://github.com/joaopgamarques/ES-2024-25-2Sem-GrupoI.git
+  cd ES-2024-25-2Sem-GrupoI
   mvn clean install
 ```
 
